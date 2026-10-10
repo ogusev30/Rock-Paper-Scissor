@@ -1,0 +1,27 @@
+{
+  "model": "ConvNeXt-Tiny (pretrained)",
+  "file": "model_b.onnx",
+  "classes": [
+    "paper",
+    "rock",
+    "scissors"
+  ],
+  "names_tr": [
+    "Kağıt",
+    "Taş",
+    "Makas"
+  ],
+  "input_size": 224,
+  "mean": [
+    0.485,
+    0.456,
+    0.406
+  ],
+  "std": [
+    0.229,
+    0.224,
+    0.225
+  ],
+  "crop_pad": 1.4,
+  "test_macro_f1": 1.0
+}

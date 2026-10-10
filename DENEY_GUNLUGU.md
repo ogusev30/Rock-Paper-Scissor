@@ -104,6 +104,18 @@ Aynı `dataset_split/` bölünmesi, aynı augmentation (RandomResizedCrop 0.75-1
 
 ## Aşama 4 — Training ve Metrik Karşılaştırma
 
+### Model B — ConvNeXt-Tiny (pretrained) · 10 Ekim 2026
+- Eğitim süresi: 1,3 dk (15 epoch, CPU). En iyi validation macro F1: **0.987** (epoch 6).
+- Adım 1 (gövde donuk) sonunda val F1 0.930; adım 2'de son aşama çözülünce 0.987'ye çıktı.
+- Train F1 1.000, val F1 0.987: belirgin bir ezber (overfitting) işareti yok; val loss eğitim boyunca düştü.
+
+| Metrik (test, 73 foto) | Kağıt | Taş | Makas | **Macro F1** |
+|---|---|---|---|---|
+| Model B | 1.000 | 1.000 | 1.000 | **1.000** |
+
+- ONNX: `model_b_fp32.onnx` (111 MB, PyTorch ile fark 3e-6, test F1 1.000) deneme sayfasında; `model_b.onnx` (int8, 34 MB, test F1 0.986) repo / web için.
+- Not: Test datası küçük (73 foto) ve aynı kişi / aynı ortamlardan; 1.000 "mükemmel model" değil, "bu fotoğraflarda hiç hata yapmadı" demek. Asıl test kamerada.
+
 ---
 
 ## Aşama 5 — Dene ve Karar Ver

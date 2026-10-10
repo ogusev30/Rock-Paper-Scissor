@@ -1,0 +1,32 @@
+{
+  "model": "Model B (ConvNeXt-Tiny)",
+  "test_macro_f1": 1.0,
+  "test_loss": 0.11866911470073543,
+  "test_f1_per_class": {
+    "paper": 1.0,
+    "rock": 1.0,
+    "scissors": 1.0
+  },
+  "confusion_matrix": [
+    [
+      23,
+      0,
+      0
+    ],
+    [
+      0,
+      27,
+      0
+    ],
+    [
+      0,
+      0,
+      23
+    ]
+  ],
+  "classes": [
+    "paper",
+    "rock",
+    "scissors"
+  ]
+}
