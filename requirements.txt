@@ -8,6 +8,7 @@ mediapipe
 opencv-contrib-python-headless
 numpy
 pillow
+pillow-heif
 scikit-learn
 matplotlib
 onnx
