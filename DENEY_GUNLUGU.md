@@ -74,6 +74,32 @@ Bu dosya projenin her aşamasındaki kararları, sayıları ve gözlemleri içer
 
 ## Aşama 3 — Model Seçimi
 
+**Başlangıç modeli (karar: ben): Model B — ConvNeXt-Tiny.** Model A, Model B'yi kamerada denedikten sonra eğitilecek.
+
+### Model A — Kendi CNN'im (sıfırdan) · onaylanan mimari
+```
+5 blok:  Conv 3×3 → BatchNorm → ReLU → MaxPool 2×2   (kanallar 32 → 64 → 128 → 128 → 256, 224 px → 7×7)
+Karar:   Flatten (12544) → Dropout 0.5 → Linear 2000 → ReLU → Dropout 0.5 → Linear 3
+Toplam:  25,6M parametre (konvolüsyon blokları 0,54M; geri kalanı büyük Linear katmanı)
+```
+- Ağırlıklar rastgele başlar; AdamW (lr 1e-3, weight decay 1e-4), 60 epoch, cosine lr, label smoothing 0.1.
+- Not: parametrelerin ~%98'i Linear katmanında → az veriyle ezber riski yüksek; Dropout + augmentation bu yüzden önemli.
+
+### Model B — ConvNeXt-Tiny (pretrained) · CPU fine-tuning planı
+- `timm` `convnext_tiny.fb_in22k_ft_in1k` (ImageNet-22k → 1k), 27,8M parametre, giriş 224 px.
+- Adım 1: gövde donuk, sadece head (3,8K parametre) → 5 epoch, lr 1e-3.
+- Adım 2: son aşama (stage 4) + head çözülür (15,5M parametre) → 10 epoch, lr 1e-4.
+- `torch.set_num_threads(48)`; deneme çalıştırmasında epoch başına ~5-15 sn.
+
+### Adil karşılaştırma
+Aynı `dataset_split/` bölünmesi, aynı augmentation (RandomResizedCrop 0.75-1, ayna, ±20° döndürme, ColorJitter, %20 GaussianBlur), aynı ImageNet normalizasyonu, aynı batch (32), aynı seed (42). Fark sadece ön eğitim.
+
+### Tahminim
+**B az farkla kazanır** (macro F1'de ~0.05 civarı fark).
+
+### Canlı panel
+`exposure-academy-animations/animations/live.py` ve `live_cnn.html` değiştirmeden kopyalandı (birebir aynı oldukları `cmp` ile kontrol edildi).
+
 ---
 
 ## Aşama 4 — Training ve Metrik Karşılaştırma

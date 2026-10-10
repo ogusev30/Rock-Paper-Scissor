@@ -22,3 +22,6 @@ node_modules/
 # MediaPipe için indirilen GL kütüphaneleri (tools/setup_gl.sh)
 vendor/
 models/*.task
+
+# Eğitim çıktıları: checkpoint ve 100 MB üstü fp32 ONNX repoya girmez (int8 .onnx girer)
+models/*_fp32.onnx
