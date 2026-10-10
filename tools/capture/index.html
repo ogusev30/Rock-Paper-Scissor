@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dataset Çekimi — Taş Kağıt Makas</title>
+<style>
+  :root {
+    --bg: #f6f5f2; --card: #fff; --ink: #1f1e1d; --muted: #6b6862; --line: #e4e1db;
+    --rock: #c2410c; --paper: #2563eb; --scissors: #16a34a; --danger: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 20px 16px 40px;
+         display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; } }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+
+  .stage { position: relative; border-radius: 12px; overflow: hidden; background: #111; aspect-ratio: 4 / 3; }
+  video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  video.mirror { transform: scaleX(-1); }
+  .overlay { position: absolute; inset: 0; display: grid; place-items: center; color: #fff;
+             font-size: 18px; text-align: center; padding: 20px; pointer-events: none; }
+  .countdown { font-size: 96px; font-weight: 700; text-shadow: 0 2px 12px rgba(0,0,0,.5); }
+  .flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; transition: opacity .25s; }
+  .flash.on { opacity: .7; transition: none; }
+  .badge { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,.6); color: #fff;
+           padding: 4px 10px; border-radius: 999px; font-size: 13px; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
+  .controls label { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 14px; }
+  select { font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: #fff; max-width: 100%; }
+
+  .shoot { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
+  .shoot button { border: 0; border-radius: 12px; padding: 16px 8px; color: #fff; font: 600 17px system-ui, sans-serif;
+                  cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .shoot button small { font-weight: 400; opacity: .85; font-size: 12px; }
+  .shoot button:disabled { opacity: .45; cursor: not-allowed; }
+  .b-rock { background: var(--rock); } .b-paper { background: var(--paper); } .b-scissors { background: var(--scissors); }
+
+  .counts .row { margin-bottom: 12px; }
+  .counts .top { display: flex; justify-content: space-between; font-weight: 600; }
+  .counts .top span:last-child { font-variant-numeric: tabular-nums; }
+  .bar { height: 10px; background: #eceae5; border-radius: 999px; overflow: hidden; margin-top: 4px; }
+  .bar i { display: block; height: 100%; width: 0; border-radius: 999px; transition: width .3s; }
+  .done { color: var(--scissors); font-size: 13px; }
+  .total { border-top: 1px solid var(--line); padding-top: 10px; display: flex; justify-content: space-between; font-weight: 600; }
+
+  h2 { font-size: 15px; margin: 0 0 10px; }
+  .side { display: flex; flex-direction: column; gap: 16px; }
+  ul.rules { margin: 0; padding-left: 18px; color: var(--muted); font-size: 14px; }
+  ul.rules li { margin-bottom: 4px; }
+  .thumbs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .thumbs figure { margin: 0; position: relative; }
+  .thumbs img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; display: block; }
+  .thumbs figcaption { position: absolute; bottom: 3px; left: 3px; font-size: 10px; color: #fff;
+                       padding: 1px 5px; border-radius: 4px; }
+  .undo { margin-top: 10px; width: 100%; padding: 9px; border-radius: 10px; border: 1px solid var(--line);
+          background: #fff; font: inherit; cursor: pointer; }
+  .undo:disabled { opacity: .5; cursor: not-allowed; }
+  .msg { min-height: 20px; font-size: 14px; color: var(--muted); margin-top: 8px; }
+  .msg.err { color: var(--danger); }
+  kbd { background: #eceae5; border-radius: 4px; padding: 0 5px; font-size: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <section>
+    <h1>Dataset Çekimi</h1>
+    <p class="sub">Hareketini yap, butona bas. Fotoğraf doğrudan <code>dataset/</code> klasörüne kaydedilir.</p>
+
+    <div class="card">
+      <div class="stage">
+        <video id="video" class="mirror" autoplay playsinline muted></video>
+        <div class="overlay" id="overlay">Kamera açılıyor…</div>
+        <div class="flash" id="flash"></div>
+        <div class="badge" id="badge" hidden></div>
+      </div>
+
+      <div class="controls">
+        <label>Kamera <select id="camera"></select></label>
+        <label>Mod
+          <select id="mode">
+            <option value="single">Tek fotoğraf</option>
+            <option value="burst" selected>Seri: 10 fotoğraf</option>
+          </select>
+        </label>
+        <label>Geri sayım
+          <select id="delay">
+            <option value="0">Yok</option>
+            <option value="3" selected>3 sn</option>
+          </select>
+        </label>
+        <label><input type="checkbox" id="mirror" checked> Ayna görüntü</label>
+      </div>
+
+      <div class="shoot">
+        <button class="b-rock" data-label="rock">Taş<small><kbd>1</kbd></small></button>
+        <button class="b-paper" data-label="paper">Kağıt<small><kbd>2</kbd></small></button>
+        <button class="b-scissors" data-label="scissors">Makas<small><kbd>3</kbd></small></button>
+      </div>
+      <div class="msg" id="msg">Seri modda her fotoğraf arasında açıyı, mesafeyi veya eli biraz değiştir.</div>
+    </div>
+  </section>
+
+  <aside class="side">
+    <div class="card counts">
+      <h2>İlerleme (hedef: her sınıf 150)</h2>
+      <div id="counts"></div>
+      <div class="total"><span>Toplam</span><span id="total">0 / 450</span></div>
+    </div>
+
+    <div class="card">
+      <h2>Son çekilenler</h2>
+      <div class="thumbs" id="thumbs"></div>
+      <button class="undo" id="undo" disabled>Son fotoğrafı sil <kbd>Z</kbd></button>
+    </div>
+
+    <div class="card">
+      <h2>Çekim kuralları</h2>
+      <ul class="rules">
+        <li>Tek el, tek hareket.</li>
+        <li>El tamamen kadrajda, parmaklar kesilmesin.</li>
+        <li>Hareket net: yarım makas / yarım kağıt yok.</li>
+        <li>Bulanık olmasın, el hareket ederken çekme.</li>
+        <li>Her çekimde açıyı, mesafeyi veya eli değiştir.</li>
+        <li>3 arka plan: düz duvar, masa üstü, karışık oda.</li>
+        <li>Sağ ve sol el; yakın, orta, uzak.</li>
+        <li>Işık önünde veya yanında olsun, arkanda değil.</li>
+      </ul>
+    </div>
+  </aside>
+</main>
+
+<script>
+const LABELS = { rock: ["Taş", "--rock"], paper: ["Kağıt", "--paper"], scissors: ["Makas", "--scissors"] };
+const TARGET = 150, BURST = 10, BURST_GAP = 700;
+
+const $ = (id) => document.getElementById(id);
+const video = $("video"), overlay = $("overlay"), msg = $("msg");
+const buttons = [...document.querySelectorAll(".shoot button")];
+const shots = []; // {label, url}
+let stream = null, busy = false;
+
+function say(text, isErr = false) { msg.textContent = text; msg.classList.toggle("err", isErr); }
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function startCamera(deviceId) {
+  if (stream) stream.getTracks().forEach((t) => t.stop());
+  overlay.textContent = "Kamera açılıyor…"; overlay.hidden = false;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: deviceId ? { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 960 } }
+                      : { width: { ideal: 1280 }, height: { ideal: 960 } },
+      audio: false,
+    });
+    video.srcObject = stream;
+    await video.play();
+    overlay.hidden = true;
+    buttons.forEach((b) => (b.disabled = false));
+    await listCameras(stream.getVideoTracks()[0].getSettings().deviceId);
+  } catch (e) {
+    overlay.textContent = "Kameraya erişilemedi. Lütfen tarayıcıda kamera izni ver ve sayfayı yenile.";
+    buttons.forEach((b) => (b.disabled = true));
+    say(`Kamera hatası: ${e.name}`, true);
+  }
+}
+
+async function listCameras(activeId) {
+  const sel = $("camera");
+  const cams = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === "videoinput");
+  sel.innerHTML = cams.map((c, i) =>
+    `<option value="${c.deviceId}" ${c.deviceId === activeId ? "selected" : ""}>${c.label || "Kamera " + (i + 1)}</option>`
+  ).join("");
+}
+
+function renderCounts(c) {
+  $("counts").innerHTML = Object.entries(LABELS).map(([key, [name, color]]) => {
+    const n = c[key] || 0, pct = Math.min(100, (n / TARGET) * 100);
+    return `<div class="row">
+      <div class="top"><span>${name}</span><span>${n} / ${TARGET}</span></div>
+      <div class="bar"><i style="width:${pct}%;background:var(${color})"></i></div>
+      ${n >= TARGET ? '<div class="done">Hedefe ulaşıldı</div>' : ""}
+    </div>`;
+  }).join("");
+  const total = Object.values(c).reduce((a, b) => a + b, 0);
+  $("total").textContent = `${total} / ${TARGET * 3}`;
+}
+
+function renderThumbs() {
+  $("thumbs").innerHTML = shots.slice(-8).reverse().map((h) =>
+    `<figure><img src="${h.url}" alt=""><figcaption style="background:var(${LABELS[h.label][1]})">${LABELS[h.label][0]}</figcaption></figure>`
+  ).join("");
+  $("undo").disabled = shots.length === 0 || busy;
+}
+
+async function refreshCounts() {
+  try { renderCounts(await (await fetch("/counts")).json()); } catch { /* sunucu kapalı olabilir */ }
+}
+
+async function snap(label) {
+  const canvas = document.createElement("canvas");
+  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  canvas.getContext("2d").drawImage(video, 0, 0);
+  const blob = await new Promise((r) => canvas.toBlob(r, "image/jpeg", 0.92));
+  const flash = $("flash"); flash.classList.add("on"); requestAnimationFrame(() => flash.classList.remove("on"));
+  const res = await fetch(`/save?label=${label}`, { method: "POST", body: blob, headers: { "Content-Type": "image/jpeg" } });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "kaydedilemedi");
+  shots.push({ label, url: URL.createObjectURL(blob) });
+  renderCounts(data.counts); renderThumbs();
+}
+
+async function shoot(label) {
+  if (busy || !stream) return;
+  busy = true; buttons.forEach((b) => (b.disabled = true)); $("undo").disabled = true;
+  const badge = $("badge");
+  try {
+    const delay = +$("delay").value;
+    for (let s = delay; s > 0; s--) {
+      overlay.hidden = false; overlay.innerHTML = `<span class="countdown">${s}</span>`;
+      await sleep(1000);
+    }
+    overlay.hidden = true;
+    const n = $("mode").value === "burst" ? BURST : 1;
+    for (let i = 1; i <= n; i++) {
+      if (n > 1) { badge.hidden = false; badge.textContent = `${LABELS[label][0]} ${i}/${n} — pozu değiştir`; }
+      await snap(label);
+      if (i < n) await sleep(BURST_GAP);
+    }
+    say(`${n} fotoğraf kaydedildi: ${LABELS[label][0]}`);
+  } catch (e) {
+    say(`Hata: ${e.message}`, true);
+  } finally {
+    badge.hidden = true; busy = false;
+    buttons.forEach((b) => (b.disabled = false)); renderThumbs();
+  }
+}
+
+async function undo() {
+  if (busy || !shots.length) return;
+  const last = shots[shots.length - 1];
+  const res = await fetch(`/undo?label=${last.label}`, { method: "POST" });
+  const data = await res.json();
+  if (res.ok) { shots.pop(); URL.revokeObjectURL(last.url); say("Son fotoğraf silindi."); }
+  else say(data.error, true);
+  if (data.counts) renderCounts(data.counts);
+  renderThumbs();
+}
+
+buttons.forEach((b) => b.addEventListener("click", () => shoot(b.dataset.label)));
+$("undo").addEventListener("click", undo);
+$("camera").addEventListener("change", (e) => startCamera(e.target.value));
+$("mirror").addEventListener("change", (e) => video.classList.toggle("mirror", e.target.checked));
+document.addEventListener("keydown", (e) => {
+  if (e.target.tagName === "SELECT" || e.repeat) return;
+  const map = { "1": "rock", "2": "paper", "3": "scissors" };
+  if (map[e.key]) shoot(map[e.key]);
+  if (e.key.toLowerCase() === "z") undo();
+});
+
+if (!navigator.mediaDevices?.getUserMedia) {
+  overlay.textContent = "Bu tarayıcı kameraya erişemiyor. Sayfayı localhost linkinden aç.";
+  buttons.forEach((b) => (b.disabled = true));
+} else {
+  startCamera();
+}
+refreshCounts();
+setInterval(refreshCounts, 5000);
+</script>
+</body>
+</html>

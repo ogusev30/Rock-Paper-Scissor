@@ -1,0 +1,20 @@
+# Ham ve işlenmiş fotoğraflar (büyük ve kişisel — Google Drive'da sakla)
+dataset/
+dataset_*/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# PyTorch checkpoint'leri (ONNX dosyaları repoda kalmalı)
+*.pt
+*.pth
+
+# Web
+node_modules/
+.next/
+.vercel/
+
+.DS_Store

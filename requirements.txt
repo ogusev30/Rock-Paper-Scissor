@@ -1,0 +1,15 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+torchvision
+timm
+mediapipe
+# mediapipe opencv-contrib-python ister; sunucuda libGL olmadığı için headless sürümü kur:
+#   pip uninstall -y opencv-contrib-python && pip install opencv-contrib-python-headless
+opencv-contrib-python-headless
+numpy
+pillow
+scikit-learn
+matplotlib
+onnx
+onnxruntime
+ipykernel
