@@ -27,10 +27,12 @@ Bu dosya projenin her aşamasındaki kararları, sayıları ve gözlemleri içer
 
 | Sınıf | Fotoğraf sayısı |
 |---|---|
-| rock (taş) | — |
-| paper (kağıt) | — |
-| scissors (makas) | — |
-| **Toplam** | — |
+| rock (taş) | 195 |
+| paper (kağıt) | 150 |
+| scissors (makas) | 155 |
+| **Toplam** | **500** |
+
+(10 Ekim 2026 itibarıyla, kopyalar ve yanlış klasördekiler temizlendikten sonra.)
 
 ### Notlar
 
