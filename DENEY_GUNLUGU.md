@@ -64,11 +64,11 @@ Bu dosya projenin her aşamasındaki kararları, sayıları ve gözlemleri içer
 | Sınıf | train | val | test | toplam |
 |---|---|---|---|---|
 | rock | 124 | 27 | 27 | 178 |
-| paper | 103 | 23 | 23 | 149 |
-| scissors | 103 | 23 | 23 | 149 |
-| **toplam** | **330** | **73** | **73** | **476** |
+| paper | 105 | 23 | 23 | 151 |
+| scissors | 107 | 23 | 23 | 153 |
+| **toplam** | **336** | **73** | **73** | **482** |
 
-- ⚠️ Kağıt ve makas temizlik sonrası 149'a düştü; zorunlu gereksinim ≥150 olduğu için birkaç foto daha eklenip `crop_hands.py` + `split_dataset.py` yeniden çalıştırılacak.
+- Temizlik sonrası kağıt/makas 149'a düşmüştü; 2 kağıt + 4 makas daha çekildi, script'ler yeniden çalıştırıldı.
 
 ---
 
