@@ -34,7 +34,10 @@ Bu dosya projenin her aşamasındaki kararları, sayıları ve gözlemleri içer
 
 ### Notlar
 
--
+- iPhone HEIC fotoğrafları `tools/convert_heic.py` ile, WhatsApp zip'leri `tools/import_zip.py` ile JPEG'e çevrildi.
+- Kopya temizliği: birebir aynı dosyalar (md5) ve WhatsApp'ın sıkıştırdığı kopyalar (görsel benzerlik / dHash) datasetten çıkarıldı → `dataset_archive/duplicates/`. Taş: 18 kopya, kağıt: 35 kopya (aynı fotoğraflar hem iPhone hem WhatsApp'tan gelmişti, kaliteli iPhone hali tutuldu).
+- Yanlış klasör: kağıt olarak gelen 50 WhatsApp fotoğrafı taştan kağıda, kağıt klasöründeki 45 yumruk fotoğrafı kağıttan taşa taşındı.
+- Belirsiz 2 fotoğraf (yarı açık el, kadrajdan taşan el) hiçbir sınıfa konmadı → `dataset_review/`.
 
 ---
 
