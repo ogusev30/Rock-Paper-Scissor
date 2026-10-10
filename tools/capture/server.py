@@ -1,7 +1,7 @@
 """Taş-Kağıt-Makas çekim sayfası sunucusu.
 
 Kullanım:
-    python tools/capture/server.py            # http://localhost:8000
+    python tools/capture/server.py            # terminalde yazan linki aç
     python tools/capture/server.py --port 8080
 
 Laptop kamerasından çekilen fotoğrafları dataset/<sınıf>/ klasörüne kaydeder.
@@ -10,6 +10,7 @@ Sadece Python standart kütüphanesini kullanır.
 
 import argparse
 import json
+import os
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -46,12 +47,17 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _route(self):
+        # Proxy ön ekini (/lab/proxy/8000/...) yok say, sadece son parçaya bak
+        last = urlparse(self.path).path.rstrip("/").rsplit("/", 1)[-1]
+        return "/" + last if last in ("counts", "save", "undo") else "/"
+
     def _label(self):
         label = parse_qs(urlparse(self.path).query).get("label", [""])[0]
         return label if label in LABELS else None
 
     def do_GET(self):
-        path = urlparse(self.path).path
+        path = self._route()
         if path == "/":
             self._send(200, INDEX.read_bytes(), "text/html; charset=utf-8")
         elif path == "/counts":
@@ -60,7 +66,7 @@ class Handler(BaseHTTPRequestHandler):
             self._send(404, {"error": "bulunamadı"})
 
     def do_POST(self):
-        path = urlparse(self.path).path
+        path = self._route()
         label = self._label()
         if label is None:
             self._send(400, {"error": f"label şunlardan biri olmalı: {', '.join(LABELS)}"})
@@ -104,7 +110,9 @@ def main():
         (DATASET / label).mkdir(parents=True, exist_ok=True)
 
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
-    print(f"Çekim sayfası: http://localhost:{args.port}")
+    proxy = os.environ.get("VSCODE_PROXY_URI")
+    url = proxy.replace("{{port}}", str(args.port)) if proxy else f"http://localhost:{args.port}"
+    print(f"Çekim sayfası: {url}")
     print(f"Fotoğraflar buraya kaydediliyor: {DATASET}")
     print("Durdurmak için Ctrl+C")
     try:

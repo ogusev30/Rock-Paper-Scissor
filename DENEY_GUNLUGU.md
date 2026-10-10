@@ -20,7 +20,7 @@ Bu dosya projenin her aşamasındaki kararları, sayıları ve gözlemleri içer
 
 ### Araçlar
 
-- Çekim sayfası: `python tools/capture/server.py` → http://localhost:8000
+- Çekim sayfası: `python tools/capture/server.py` → https://student.exposureai.org/lab/proxy/8000/
 - Sayım: `python tools/count_dataset.py`
 
 ### Sınıf sayıları

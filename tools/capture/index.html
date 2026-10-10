@@ -198,7 +198,7 @@ function renderThumbs() {
 }
 
 async function refreshCounts() {
-  try { renderCounts(await (await fetch("/counts")).json()); } catch { /* sunucu kapalı olabilir */ }
+  try { renderCounts(await (await fetch("counts")).json()); } catch { /* sunucu kapalı olabilir */ }
 }
 
 async function snap(label) {
@@ -207,7 +207,7 @@ async function snap(label) {
   canvas.getContext("2d").drawImage(video, 0, 0);
   const blob = await new Promise((r) => canvas.toBlob(r, "image/jpeg", 0.92));
   const flash = $("flash"); flash.classList.add("on"); requestAnimationFrame(() => flash.classList.remove("on"));
-  const res = await fetch(`/save?label=${label}`, { method: "POST", body: blob, headers: { "Content-Type": "image/jpeg" } });
+  const res = await fetch(`save?label=${label}`, { method: "POST", body: blob, headers: { "Content-Type": "image/jpeg" } });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "kaydedilemedi");
   shots.push({ label, url: URL.createObjectURL(blob) });
@@ -243,7 +243,7 @@ async function shoot(label) {
 async function undo() {
   if (busy || !shots.length) return;
   const last = shots[shots.length - 1];
-  const res = await fetch(`/undo?label=${last.label}`, { method: "POST" });
+  const res = await fetch(`undo?label=${last.label}`, { method: "POST" });
   const data = await res.json();
   if (res.ok) { shots.pop(); URL.revokeObjectURL(last.url); say("Son fotoğraf silindi."); }
   else say(data.error, true);
