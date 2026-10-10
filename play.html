@@ -26,7 +26,7 @@
   .bar span:last-child { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
   .crop { display: flex; gap: 10px; align-items: center; margin-top: 14px; color: var(--muted); font-size: 13px; }
   .crop canvas { width: 96px; height: 96px; border-radius: 8px; background: #111; }
-  video { display: none; }
+  video { position: fixed; left: 0; top: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; }  /* display:none bazı tarayıcılarda kareleri dondurur */
 </style>
 </head>
 <body>
@@ -36,7 +36,8 @@
   <div class="status" id="status">Yükleniyor…</div>
   <div class="grid" id="panels"></div>
   <div class="crop"><canvas id="crop" width="224" height="224"></canvas>
-    <div>Modellerin gördüğü görüntü: MediaPipe'ın bulduğu el, eğitimdekiyle aynı kuralla kırpılmış (224×224).</div></div>
+    <div>Modellerin gördüğü görüntü: MediaPipe'ın bulduğu el, eğitimdekiyle aynı kuralla kırpılmış (224×224).
+      <div id="perf" style="margin-top:6px;font-variant-numeric:tabular-nums"></div></div></div>
   <video id="video" autoplay playsinline muted></video>
 </main>
 
@@ -49,7 +50,9 @@ const TR = { rock: "Taş", paper: "Kağıt", scissors: "Makas" };
 const video = document.getElementById("video");
 const statusEl = document.getElementById("status");
 const crop = document.getElementById("crop"), cropCtx = crop.getContext("2d");
-let landmarker, models = [], panels = {}, smooth = {}, box = null, busy = false, lastSent = 0;
+let landmarker, models = [], panels = {}, probs = {}, box = null, busy = false;
+const perf = { detect: 0, trip: 0, fps: 0, frames: 0, t0: performance.now() };
+const avg = (old, v) => old ? 0.8 * old + 0.2 * v : v;
 
 function setStatus(text, err = false) {
   statusEl.hidden = !text; statusEl.textContent = text || ""; statusEl.classList.toggle("err", err);
@@ -82,20 +85,18 @@ function squareBox(lms, w, h, pad) {
 }
 
 async function sendCrop() {
-  if (busy || !box || performance.now() - lastSent < 120) return;
-  busy = true; lastSent = performance.now();
+  if (busy || !box) return;
+  busy = true;
+  const t = performance.now();
   cropCtx.fillStyle = "#000"; cropCtx.fillRect(0, 0, 224, 224);
   cropCtx.drawImage(video, box.x, box.y, box.side, box.side, 0, 0, 224, 224);  // dışarı taşan kısım siyah kalır
-  const blob = await new Promise((r) => crop.toBlob(r, "image/jpeg", 0.95));
+  const blob = await new Promise((r) => crop.toBlob(r, "image/jpeg", 0.9));
   try {
     const res = await fetch("predict", { method: "POST", body: blob });
     const out = await res.json();
     if (!res.ok) throw new Error(out.error);
-    for (const m of models) {
-      const p = out[m.name]?.probs; if (!p) continue;
-      const prev = smooth[m.name] || p;
-      smooth[m.name] = p.map((v, i) => 0.5 * v + 0.5 * prev[i]);   // titremesin diye hafif yumuşatma
-    }
+    for (const m of models) if (out[m.name]) probs[m.name] = out[m.name].probs;
+    perf.trip = avg(perf.trip, performance.now() - t);
   } catch (e) { setStatus("Tahmin alınamadı: " + e.message, true); }
   busy = false;
 }
@@ -107,7 +108,7 @@ function draw() {
     if (canvas.width !== W) { canvas.width = W; canvas.height = H; }
     const ctx = canvas.getContext("2d");
     ctx.save(); ctx.translate(W, 0); ctx.scale(-1, 1); ctx.drawImage(video, 0, 0, W, H); ctx.restore();  // ayna görüntü
-    const p = smooth[m.name];
+    const p = probs[m.name];
     if (!box) {
       ctx.fillStyle = "rgba(0,0,0,.55)"; ctx.fillRect(0, H / 2 - 30, W, 60);
       ctx.fillStyle = "#fff"; ctx.font = `600 ${Math.round(W / 22)}px system-ui`; ctx.textAlign = "center";
@@ -132,10 +133,17 @@ function draw() {
 
 function loop() {
   if (video.readyState >= 2) {
-    const res = landmarker.detectForVideo(video, performance.now());
+    const t = performance.now();
+    const res = landmarker.detectForVideo(video, t);
+    perf.detect = avg(perf.detect, performance.now() - t);
+    if (++perf.frames % 15 === 0) {
+      perf.fps = 15000 / (performance.now() - perf.t0); perf.t0 = performance.now();
+      document.getElementById("perf").textContent =
+        `Hız: ${perf.fps.toFixed(0)} kare/sn · el tespiti ${perf.detect.toFixed(0)} ms · tahmin (sunucuya gidiş-dönüş) ${perf.trip.toFixed(0)} ms`;
+    }
     box = res.landmarks.length
       ? squareBox(res.landmarks[0], video.videoWidth, video.videoHeight, models[0]?.crop_pad ?? 1.4) : null;
-    if (box) sendCrop();
+    if (box) sendCrop(); else probs = {};
     draw();
   }
   requestAnimationFrame(loop);
@@ -147,13 +155,14 @@ async function start() {
     if (!models.length) { setStatus("Henüz eğitilmiş model yok. Notebook ONNX dosyasını yazınca sayfayı yenile.", true); return; }
     setStatus("El tespit modeli yükleniyor…");
     const fileset = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
-    landmarker = await HandLandmarker.createFromOptions(fileset, {
-      baseOptions: { modelAssetPath: "hand_landmarker.task", delegate: "CPU" }, runningMode: "VIDEO", numHands: 1,
+    const make = (delegate) => HandLandmarker.createFromOptions(fileset, {
+      baseOptions: { modelAssetPath: "hand_landmarker.task", delegate }, runningMode: "VIDEO", numHands: 1,
     });
+    landmarker = await make("GPU").catch(() => make("CPU"));
   } catch (e) { setStatus("Yüklenemedi: " + e.message, true); return; }
   setStatus("Kamera açılıyor…");
   try {
-    video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+    video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
     await video.play();
   } catch (e) { setStatus("Kameraya erişilemedi. Lütfen izin ver.", true); return; }
   setStatus("");
