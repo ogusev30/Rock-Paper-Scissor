@@ -18,3 +18,7 @@ node_modules/
 .vercel/
 
 .DS_Store
+
+# MediaPipe için indirilen GL kütüphaneleri (tools/setup_gl.sh)
+vendor/
+models/*.task
