@@ -45,6 +45,31 @@ Bu dosya projenin her aşamasındaki kararları, sayıları ve gözlemleri içer
 
 ## Aşama 2 — Data Cleaning
 
+### Eli kırpma
+- `tools/crop_hands.py`: MediaPipe Hand Landmarker (float16) ile 21 el noktası bulunur; noktaların kutusunun uzun kenarı × 1.4 kare olarak kırpılır, 224×224'e boyutlanır. Kare görüntü dışına taşarsa siyah doldurulur. **Deneme sayfası ve web uygulaması da aynı kuralı kullanacak.**
+- Önce eşik 0.5, el bulunamazsa 0.2 ile tekrar denenir. 500 fotoğrafın 487'sinde el bulundu (18'i ikinci denemede).
+- Not: MediaPipe 1.x sunucuda `libEGL.so.1` istiyor; root olmadığı için `tools/setup_gl.sh` ile Debian paketlerinden `vendor/gl/` içine indirildi (sunucu ARM / aarch64).
+
+### Silinenler (karar: ben) → `dataset_archive/removed/`
+| Neden | Taş | Kağıt | Makas |
+|---|---|---|---|
+| El bulunamadı (çok yakın/kesik, çok uzak, MediaPipe kaçırdı) | 6 | 1 | 6 |
+| Bulanık (hareket / çok uzaktan webcam) | 11 | 0 | 0 |
+
+- Kapalı makas (iki parmak bitişik, ~18 foto) **tutuldu**: taş/kağıtla karışmaz ve demoda insanlar böyle de yapacak.
+
+### Bölme
+- `tools/split_dataset.py`: sınıf başına ~%70 / %15 / %15, seed 42. Arka arkaya çekilmiş neredeyse aynı kareler (dHash ≤ 12) aynı gruba konup birlikte tek bölüme gönderildi (19 grup), böylece test datasında eğitimdekinin neredeyse aynısı yok.
+
+| Sınıf | train | val | test | toplam |
+|---|---|---|---|---|
+| rock | 124 | 27 | 27 | 178 |
+| paper | 103 | 23 | 23 | 149 |
+| scissors | 103 | 23 | 23 | 149 |
+| **toplam** | **330** | **73** | **73** | **476** |
+
+- ⚠️ Kağıt ve makas temizlik sonrası 149'a düştü; zorunlu gereksinim ≥150 olduğu için birkaç foto daha eklenip `crop_hands.py` + `split_dataset.py` yeniden çalıştırılacak.
+
 ---
 
 ## Aşama 3 — Model Seçimi
