@@ -116,6 +116,21 @@ Aynı `dataset_split/` bölünmesi, aynı augmentation (RandomResizedCrop 0.75-1
 - ONNX: `model_b_fp32.onnx` (111 MB, PyTorch ile fark 3e-6, test F1 1.000) deneme sayfasında; `model_b.onnx` (int8, 34 MB, test F1 0.986) repo / web için.
 - Not: Test datası küçük (73 foto) ve aynı kişi / aynı ortamlardan; 1.000 "mükemmel model" değil, "bu fotoğraflarda hiç hata yapmadı" demek. Asıl test kamerada.
 
+### Model A — Kendi CNN'im (sıfırdan) · 12 Ekim 2026
+- Eğitim süresi: 3,9 dk (60 epoch, CPU, epoch başına ~4 sn). En iyi validation macro F1: **0.986** (epoch 38).
+- İlk epoch'larda F1 ~0.33 (rastgele tahmin); epoch 10'da val 0.60, epoch 20'de 0.85, epoch 30'da 0.96. Model B ilk epoch'ta 0.87'deydi → pretraining öğrenmeyi çok hızlandırıyor.
+- Son epoch'ta train F1 0.976, val F1 0.971: ezber işareti yok (Dropout + augmentation işe yaradı).
+
+| Metrik (test, 73 foto) | Kağıt | Taş | Makas | **Macro F1** |
+|---|---|---|---|---|
+| Model A | 1.000 | 0.981 | 0.979 | **0.987** |
+| Model B | 1.000 | 1.000 | 1.000 | **1.000** |
+
+- Tek hata: 1 taş fotoğrafı makas sanıldı.
+- Pretraining farkı (B − A): **+0.013 macro F1**. Tahminim "B az farkla kazanır (~0.05)" idi → B kazandı, fark tahminimden de küçük.
+- ONNX: `model_a_fp32.onnx` (103 MB, sadece sunucuda) ve `model_a.onnx` (int8, 27 MB, test F1 0.987; sıkıştırma Model A'da hiç F1 kaybettirmedi).
+- Notebook düzeltmesi: `count` fonksiyonu Model B bölümünden ortak fonksiyonlar hücresine taşındı (Model A tek başına çalışmıyordu).
+
 ---
 
 ## Aşama 5 — Dene ve Karar Ver
