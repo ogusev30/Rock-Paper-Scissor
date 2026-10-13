@@ -41,6 +41,11 @@ Bu dosya projenin her aşamasındaki kararları, sayıları ve gözlemleri içer
 - Yanlış klasör: kağıt olarak gelen 50 WhatsApp fotoğrafı taştan kağıda, kağıt klasöründeki 45 yumruk fotoğrafı kağıttan taşa taşındı.
 - Belirsiz 2 fotoğraf (yarı açık el, kadrajdan taşan el) hiçbir sınıfa konmadı → `dataset_review/`.
 
+### Yeni fotoğraflar · 13 Ekim 2026
+- Kamerada model makası karıştırdığı için yeni iPhone fotoğrafları eklendi: kağıt +98, makas +78 (HEIC → JPEG, `tools/convert_heic.py`).
+- Yeni ham sayılar: taş 178, kağıt 249, makas 231 (toplam 658).
+- ⚠️ Cihaz dengesi: makasın 230 fotoğrafından sadece **5'i laptop kamerasından** (taş 19, kağıt 9). Plan "yarısı laptop" diyordu ve demo laptop kamerasıyla. Kamerada makas sorununun en olası sebebi bu → deneme sayfasından laptop kamerasıyla kare kaydedilecek (`dataset_live/`, `tools/import_live.py`).
+
 ---
 
 ## Aşama 2 — Data Cleaning
@@ -69,6 +74,15 @@ Bu dosya projenin her aşamasındaki kararları, sayıları ve gözlemleri içer
 | **toplam** | **336** | **73** | **73** | **482** |
 
 - Temizlik sonrası kağıt/makas 149'a düşmüştü; 2 kağıt + 4 makas daha çekildi, script'ler yeniden çalıştırıldı.
+
+**Yeni fotoğraflardan sonra (13 Ekim):** eski dosyalar bölümlerinde kaldı (test seti değişmedi, sadece büyüdü), yeniler oranları tutacak şekilde dağıtıldı. 1 makas fotoğrafında el bulunamadı.
+
+| Sınıf | train | val | test | toplam |
+|---|---|---|---|---|
+| rock | 124 | 27 | 27 | 178 |
+| paper | 173 | 38 | 38 | 249 |
+| scissors | 160 | 35 | 35 | 230 |
+| **toplam** | **457** | **100** | **100** | **657** |
 
 ---
 
@@ -131,10 +145,48 @@ Aynı `dataset_split/` bölünmesi, aynı augmentation (RandomResizedCrop 0.75-1
 - ONNX: `model_a_fp32.onnx` (103 MB, sadece sunucuda) ve `model_a.onnx` (int8, 27 MB, test F1 0.987; sıkıştırma Model A'da hiç F1 kaybettirmedi).
 - Notebook düzeltmesi: `count` fonksiyonu Model B bölümünden ortak fonksiyonlar hücresine taşındı (Model A tek başına çalışmıyordu).
 
+### V2 — Kameraya dayanıklı tarif + yeni fotoğraflar · 12–13 Ekim 2026
+Kamerada iki model de ilk sürümde zorlandı (özellikle makas, kutu kayınca ve ışık değişince). Test seti dolu (B 1.000) olduğu için ölçüm yetmiyordu; bu yüzden:
+- **Zor test** (`improve.py`): aynı val / test fotoğraflarının 12 bozulmuş hali (kutu kayması, kırpma payı, eğik el, karanlık, parlak, gürültü, hareket bulanıklığı, JPEG, düşük çözünürlük, siyah-beyaz). Tarif ve epoch seçimi sadece val ile; test sadece raporlandı.
+- **Yeni tarif**: el, her seferinde geniş bağlam karesinden (`tools/crop_context.py`, el kutusu × 2.4) rastgele pay (1.2–1.7) ve kaymayla kesilir + kamera bozulmaları. İki model yine aynı data, aynı tarif, aynı bölünme.
+- İlk datasetle (482 el) notebook modelleri zor testte: A 0.749, B 0.972. Yeni tarifle: A 0.959, B 0.996.
+- Sonra yeni fotoğraflar eklendi (657 el) ve iki model **`training.ipynb` V2 bölümünde** yeniden eğitildi (B 8 dk, A 33 dk). Deneme sayfası artık bu modelleri kullanıyor.
+
+| Test (100 foto, yeni data) | Kağıt | Taş | Makas | **Macro F1** | Zor test F1 |
+|---|---|---|---|---|---|
+| Model A — kendi CNN (`A_new2_long`) | 0.973 | 1.000 | 0.972 | **0.982** | 0.931 |
+| Model B — ConvNeXt-Tiny (`B_deep`) | 1.000 | 1.000 | 1.000 | **1.000** | 0.988 |
+
+- Pretraining farkı (B − A): temiz testte **+0.018**, zor testte **+0.057**. Fark asıl bozulmuş (kameraya benzer) görüntülerde ortaya çıkıyor.
+- A en çok kutu kaymasında (sol-yukarı 0.804) ve eğik elde (0.905) düşüyor; B'nin en kötüsü düşük çözünürlük (0.971).
+- int8 ONNX: A 27 MB, B 34 MB; ikisi de fp32 ile aynı test F1.
+- Eski modeller `models/eski/`, eski sonuçlar `results/v2/eski_veri/` içinde.
+
 ---
 
 ## Aşama 5 — Dene ve Karar Ver
 
+### Deneme sayfası (`play.py`, https://student.exposureai.org/lab/proxy/8001/)
+- İki model yan yana: bounding box, "Taş %94" etiketi, olasılık çubukları, "Elini kameraya göster" / "Kameraya erişilemedi. Lütfen izin ver." durumları.
+- Gecikme düzeltmeleri: aynı anda 3 istek yolda olabilir, zaman yumuşatma (120 ms).
+- **Hız (13 Ekim):** sunucu artık int8 modelleri paralel çalıştırıyor (model başına 16 çekirdek). Bir tahmin isteği 35 ms → 14 ms; B tek başına 28 → 12 ms, A ~2.5 ms. Sayfada her modelin süresi ⏱ ile yazıyor.
+- **Sunucu / Tarayıcı** seçimi: "Tarayıcı"da modeller ONNX Runtime Web ile tarayıcıda çalışır (proxy gidiş-dönüşü yok). Sunucuda tek çekirdekli WASM ölçümü: A 66 ms, B ~440 ms. B büyük model olduğu için tarayıcıda yavaş; laptopta çok çekirdekle daha hızlı olmalı (Aşama 6'da COOP/COEP ile açık).
+- Kamerada yanlış tahmin olunca 1 / 2 / 3 tuşlarıyla kare kaydedilir → `dataset_live/` → `tools/import_live.py` ile datasete eklenir.
+
+### Karar — ⏳ öğrencinin kararı bekleniyor
+- [ ] Web'e giden model: **…** (A mı B mi?)
+- [ ] Neden: metrikler ve canlı deneme aynı şeyi söyledi mi?
+- [ ] Diğer model kamerada nerede zorlandı?
+
+Rakamlar B'yi gösteriyor (temiz +0.018, zor test +0.057); A tarayıcıda ~7 kat hızlı. Son karar kamerada yan yana denedikten sonra.
+
 ---
 
 ## Aşama 6 — Productize ve Deploy
+
+### Taslak (13 Ekim) — `web/`
+- Next.js 15 + ONNX Runtime Web 1.20 (WASM) + MediaPipe Tasks Vision; her şey tarayıcıda, sunucu / API anahtarı yok.
+- Tek model, büyük kamera görüntüsü, bounding box + % confidence, tahmin kartı, model bilgi kartı (ad, test macro F1, tahmin süresi), yükleniyor / hata / "elini göster" durumları, ön kamera, mobil uyumlu yerleşim.
+- ORT ve MediaPipe dosyaları `public/` altından gelir (CDN yok); COOP/COEP başlıklarıyla WASM çok çekirdekli çalışır.
+- Şu an metrik lideri **Model B** konuldu; karar A olursa `public/models/` içindeki model değiştirilecek.
+- Yapılacaklar: karara göre kaybeden modeli projeden kaldırmak, ürün adı, telefonda deneme, Vercel deploy (Root Directory = `web`).

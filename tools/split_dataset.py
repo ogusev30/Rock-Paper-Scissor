@@ -1,7 +1,8 @@
 """Aşama 2: Kırpılmış eli train / validation / test olarak böler (~%70 / %15 / %15).
 
 Kullanım:
-    .venv/bin/python tools/split_dataset.py
+    .venv/bin/python tools/split_dataset.py            # eski dosyalar yerinde kalır, sadece yeniler dağıtılır
+    .venv/bin/python tools/split_dataset.py --fresh    # her şeyi baştan böl
 
 Girdi:  dataset_cropped/<sınıf>/*.jpg
 Çıktı:  dataset_split/{train,val,test}/<sınıf>/*.jpg
@@ -10,7 +11,13 @@ Girdi:  dataset_cropped/<sınıf>/*.jpg
 Arka arkaya çekilmiş, neredeyse aynı kareler (dHash farkı <= 12) aynı gruba konur ve
 grup bütün olarak tek bir bölüme gider. Böylece test datasında, eğitimde görülmüş bir
 fotoğrafın neredeyse aynısı olmaz.
+
+Yeni fotoğraf eklenince: dataset_split/split.csv'deki dosyalar eski bölümlerinde kalır (test seti
+değişmez, sadece büyür). Eski bir dosyayla aynı gruba düşen yeni kare o dosyanın bölümüne gider; geri
+kalan yeni gruplar, oranları tutturacak şekilde eksik olan bölümlere dağıtılır.
 """
+
+import argparse
 
 import csv
 import random
@@ -55,6 +62,11 @@ def groups_of(files):
 
 
 def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--fresh", action="store_true", help="eski bölmeyi yok say, baştan böl")
+    old = {}
+    if not ap.parse_args().fresh and (OUT / "split.csv").exists():
+        old = {(r["label"], r["file"]): r["split"] for r in csv.DictReader(open(OUT / "split.csv"))}
     if OUT.exists():
         shutil.rmtree(OUT)
     rng = random.Random(SEED)
@@ -67,14 +79,26 @@ def main():
         groups.sort(key=len, reverse=True)
         target = {s: r * len(files) for s, r in RATIOS.items()}
         filled = {s: 0 for s in RATIOS}
+        placed = []
+        for g in groups:  # önce eski dosya içeren gruplar: eski bölümlerine (çoğunluk)
+            prev = [old[(label, f.name)] for f in g if (label, f.name) in old]
+            if prev:
+                split = max(set(prev), key=prev.count)
+                filled[split] += len(g)
+                placed.append((g, split))
         for g in groups:
+            if any((label, f.name) in old for f in g):
+                continue
             split = max(RATIOS, key=lambda s: (target[s] - filled[s]) / target[s])
             filled[split] += len(g)
+            placed.append((g, split))
+        for g, split in placed:
             for f in g:
-                dst = OUT / split / label / f.name
+                split_f = old.get((label, f.name), split)  # eski dosya asla yer değiştirmez
+                dst = OUT / split_f / label / f.name
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(f, dst)
-                rows.append({"file": f.name, "label": label, "split": split, "group": len(g)})
+                rows.append({"file": f.name, "label": label, "split": split_f, "group": len(g)})
 
     with open(OUT / "split.csv", "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=["file", "label", "split", "group"])

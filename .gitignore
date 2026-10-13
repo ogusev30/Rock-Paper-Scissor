@@ -25,3 +25,6 @@ models/*.task
 
 # Eğitim çıktıları: checkpoint ve 100 MB üstü fp32 ONNX repoya girmez (int8 .onnx girer)
 models/*_fp32.onnx
+
+# Eski modellerin yerel yedeği (fp32 dosyaları 100 MB üstü)
+models/eski/

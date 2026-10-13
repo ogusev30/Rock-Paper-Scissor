@@ -23,5 +23,7 @@
     0.225
   ],
   "crop_pad": 1.4,
-  "test_macro_f1": 1.0
+  "test_macro_f1": 1.0,
+  "test_stress_f1": 0.9878,
+  "recipe": "improve.py B_deep seed 1"
 }
