@@ -1,0 +1,69 @@
+/* Neumorphism (deneme sayfasıyla aynı dil): her şey arka planla aynı renkten — kabarık (raised) ve gömük (inset) yüzeyler */
+:root {
+  --bg: #eef1f5; --hi: #ffffff; --lo: #cdd4de; --ink: #2b3140; --muted: #737c8c;
+  --rock: #e2703a; --paper: #4a78ec; --scissors: #26a868; --unsure: #9aa2b1; --danger: #d64545;
+  --d: 7px; --b: 16px;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { background: var(--bg); }
+body { margin: 0; color: var(--ink);
+       font: 15px/1.5 ui-rounded, "SF Pro Rounded", "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1180px; margin: 0 auto; padding: 22px 16px 40px; }
+
+.raised { background: var(--bg); border-radius: 26px;
+          box-shadow: var(--d) var(--d) var(--b) var(--lo), calc(-1 * var(--d)) calc(-1 * var(--d)) var(--b) var(--hi); }
+.inset  { background: var(--bg); border-radius: 18px;
+          box-shadow: inset 5px 5px 11px var(--lo), inset -5px -5px 11px var(--hi); }
+
+/* başlık */
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-bottom: 24px; }
+.logo { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font-size: 30px; flex: none; }
+.logo span::after { content: "✊"; animation: cycle 3.6s steps(1) infinite; }
+@keyframes cycle { 0% { content: "✊"; } 33% { content: "✋"; } 66% { content: "✌️"; } }
+h1 { margin: 0; font-size: clamp(22px, 4vw, 30px); letter-spacing: -.02em; font-weight: 800; }
+header p { margin: 2px 0 0; color: var(--muted); }
+.chip { margin-left: auto; padding: 9px 16px; border-radius: 999px; font-size: 13.5px; font-weight: 600; color: var(--muted);
+        display: inline-flex; gap: 8px; align-items: center; }
+.chip .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--unsure); transition: .3s; }
+.chip.ok .dot { background: var(--scissors); box-shadow: 0 0 10px var(--scissors); }
+.chip.err { color: var(--danger); }
+.chip.err .dot { background: var(--danger); }
+
+/* yerleşim: solda büyük kamera, sağda tahmin + model kartı */
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 26px; align-items: start; }
+.stage { padding: 12px; }
+.view { position: relative; width: 100%; aspect-ratio: 4 / 3; border-radius: 16px; overflow: hidden; background: #15171c; }
+.view canvas { width: 100%; height: 100%; display: block; object-fit: cover; }
+.overlay { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; text-align: center;
+           color: #fff; font-weight: 700; font-size: clamp(16px, 3vw, 22px); background: rgba(15, 17, 22, .55); }
+.overlay.err { background: rgba(60, 14, 14, .72); }
+.spinner { width: 34px; height: 34px; border-radius: 50%; border: 4px solid rgba(255,255,255,.25); border-top-color: #fff;
+           animation: spin 0.9s linear infinite; margin: 0 auto 12px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.side { display: grid; gap: 22px; }
+.card { padding: 20px; }
+.card h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.big { font-size: 38px; font-weight: 800; line-height: 1.1; letter-spacing: -.02em; }
+.conf { color: var(--muted); font-weight: 600; margin-top: 2px; }
+.bars { display: grid; gap: 10px; margin-top: 18px; }
+.bar { display: grid; grid-template-columns: 64px 1fr 44px; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; }
+.track { height: 12px; border-radius: 999px; padding: 0; overflow: hidden; }
+.track i { display: block; height: 100%; width: 0; border-radius: 999px; transition: width .15s; }
+.bar span:last-child { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+.info { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 14px; }
+.info dt { color: var(--muted); }
+.info dd { margin: 0; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.tip { padding: 14px 18px; font-size: 14px; color: var(--muted); display: flex; gap: 10px; align-items: center; }
+
+@media (max-width: 860px) {
+  .layout { grid-template-columns: 1fr; }
+  .chip { margin-left: 0; }
+}
+@media (max-width: 520px) {
+  main { padding: 16px 16px 32px; }
+  .stage { padding: 8px; } .card { padding: 16px; } .big { font-size: 32px; }
+  .side { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
