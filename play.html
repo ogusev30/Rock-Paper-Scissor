@@ -3,41 +3,178 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Deneme Sayfası — Taş Kağıt Makas</title>
+<title>Taş Kağıt Makas</title>
 <style>
-  :root { --bg: #f6f5f2; --card: #fff; --ink: #1f1e1d; --muted: #6b6862; --line: #e4e1db;
-          --rock: #c2410c; --paper: #2563eb; --scissors: #16a34a; --danger: #dc2626; }
+  /* Neumorphism: her şey arka planla aynı renkten "yoğrulmuş" — kabarık (raised) ve gömük (inset) yüzeyler */
+  :root {
+    --bg: #eef1f5; --hi: #ffffff; --lo: #cdd4de; --ink: #2b3140; --muted: #737c8c;
+    --rock: #e2703a; --paper: #4a78ec; --scissors: #26a868; --unsure: #9aa2b1; --danger: #d64545;
+    --d: 7px; --b: 16px;   /* gölge mesafesi / bulanıklık */
+  }
+
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
-  main { max-width: 1200px; margin: 0 auto; padding: 18px 16px 40px; }
-  h1 { font-size: 20px; margin: 0 0 2px; }
-  .sub { color: var(--muted); margin: 0 0 14px; }
-  .status { padding: 10px 14px; border-radius: 10px; background: #fff7ed; border: 1px solid #fed7aa; margin-bottom: 14px; }
-  .status.err { background: #fef2f2; border-color: #fecaca; color: var(--danger); }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap: 16px; }
-  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
-  .panel h2 { font-size: 16px; margin: 0 0 2px; }
-  .panel .meta { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
-  canvas.view { width: 100%; aspect-ratio: 4 / 3; background: #111; border-radius: 10px; display: block; }
-  .bars { margin-top: 10px; display: grid; gap: 6px; }
-  .bar { display: grid; grid-template-columns: 60px 1fr 46px; align-items: center; gap: 8px; font-size: 14px; }
-  .track { height: 12px; background: #eceae5; border-radius: 999px; overflow: hidden; }
-  .track i { display: block; height: 100%; width: 0; border-radius: 999px; transition: width .15s; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.5 ui-rounded, "SF Pro Rounded", "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1240px; margin: 0 auto; padding: 22px 16px 48px; }
+
+  .raised { background: var(--bg); border-radius: 26px;
+            box-shadow: var(--d) var(--d) var(--b) var(--lo), calc(-1 * var(--d)) calc(-1 * var(--d)) var(--b) var(--hi); }
+  .inset  { background: var(--bg); border-radius: 18px;
+            box-shadow: inset 5px 5px 11px var(--lo), inset -5px -5px 11px var(--hi); }
+
+  /* ---------- başlık */
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; margin-bottom: 26px; }
+  .logo { width: 74px; height: 74px; border-radius: 50%; display: grid; place-items: center; font-size: 34px; flex: none; }
+  .logo span::after { content: "✊"; animation: cycle 3.6s steps(1) infinite; }
+  @keyframes cycle { 0% { content: "✊"; } 33% { content: "✋"; } 66% { content: "✌️"; } }
+  header h1 { margin: 0; font-size: clamp(22px, 4vw, 30px); letter-spacing: -.02em; }
+  header h1 b { font-weight: 800; }
+  header h1 i { font-style: normal; color: var(--muted); font-weight: 400; margin: 0 .2em; }
+  header p { margin: 2px 0 0; color: var(--muted); }
+  .head-right { margin-left: auto; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .chip { padding: 9px 16px; border-radius: 999px; font-size: 13.5px; font-weight: 600; color: var(--muted);
+          display: inline-flex; gap: 8px; align-items: center; }
+  .chip .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--unsure); box-shadow: 0 0 0 3px transparent; transition: .3s; }
+  .chip.ok .dot { background: var(--scissors); box-shadow: 0 0 10px var(--scissors); }
+  .chip.split .dot { background: var(--rock); box-shadow: 0 0 10px var(--rock); }
+  .chip.err { color: var(--danger); }
+  .chip.err .dot { background: var(--danger); }
+  /* modellerin çalıştığı yer: Sunucu / Tarayıcı */
+  .seg { display: inline-flex; padding: 5px; border-radius: 999px; gap: 4px; }
+  .seg button { border: 0; background: none; font: inherit; font-size: 13px; font-weight: 700; color: var(--muted);
+                padding: 6px 14px; border-radius: 999px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { color: var(--ink); background: var(--bg);
+                box-shadow: 3px 3px 7px var(--lo), -3px -3px 7px var(--hi); }
+  .seg button:focus-visible { outline: 2px solid var(--paper); outline-offset: 2px; }
+
+  /* ---------- model panelleri */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 480px), 1fr)); gap: 28px; }
+  .panel { padding: 20px; }
+  .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 2px 4px 16px; }
+  .panel-head h2 { margin: 0; font-size: 18px; }
+  .panel-head h2 small { display: block; font-size: 13px; color: var(--muted); font-weight: 500; }
+  .f1 { padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 700; color: var(--muted); white-space: nowrap;
+        font-variant-numeric: tabular-nums; }
+  .badges { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .well { padding: 10px; border-radius: 22px; }
+  canvas.view { width: 100%; aspect-ratio: 4 / 3; background: #15171c; border-radius: 14px; display: block; }
+
+  .verdict { display: grid; grid-template-columns: auto 1fr; gap: 22px; align-items: center; margin-top: 22px; }
+  /* güven halkası: conic-gradient, --p (0–1) kadar dolar */
+  .ring { --p: 0; --c: var(--unsure); width: 112px; height: 112px; border-radius: 50%; padding: 9px; position: relative; transition: --p .2s; }
+  .ring::before { content: ""; position: absolute; inset: 9px; border-radius: 50%;
+                  background: conic-gradient(var(--c) calc(var(--p) * 360deg), transparent 0);
+                  mask: radial-gradient(circle, transparent 62%, #000 63%);
+                  -webkit-mask: radial-gradient(circle, transparent 62%, #000 63%); }
+  .disc { position: absolute; inset: 21px; border-radius: 50%; display: grid; place-items: center; font-size: 34px;
+          background: var(--bg); transition: transform .25s cubic-bezier(.3, 1.6, .5, 1), box-shadow .25s;
+          box-shadow: inset 3px 3px 7px var(--lo), inset -3px -3px 7px var(--hi); }
+  .ring.sure .disc { transform: scale(1.06);
+          box-shadow: 4px 4px 9px var(--lo), -4px -4px 9px var(--hi); }
+  .ring.pop .disc { animation: pop .35s ease; }
+  @keyframes pop { 40% { transform: scale(1.18); } }
+  .say { min-width: 0; }
+  .say .label { font-size: clamp(24px, 3.4vw, 32px); font-weight: 800; letter-spacing: -.02em; line-height: 1.1; transition: color .2s; }
+  .say .conf { color: var(--muted); font-size: 13.5px; margin-top: 2px; }
+
+  .bars { display: grid; gap: 12px; margin-top: 14px; }
+  .bar { display: grid; grid-template-columns: 74px 1fr 46px; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; }
+  .track { height: 16px; padding: 3px; border-radius: 999px; }
+  .track i { display: block; height: 100%; width: 0; min-width: 10px; border-radius: 999px; transition: width .18s ease-out;
+             box-shadow: 1px 1px 3px rgba(0,0,0,.18), inset 1px 1px 1px rgba(255,255,255,.35); }
   .bar span:last-child { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
-  .crop { display: flex; gap: 10px; align-items: center; margin-top: 14px; color: var(--muted); font-size: 13px; }
-  .crop canvas { width: 96px; height: 96px; border-radius: 8px; background: #111; }
+
+  /* ---------- alt sıra */
+  .lower { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 28px; margin-top: 30px; }
+  .card { padding: 20px 22px; }
+  .card h3 { margin: 0 0 4px; font-size: 16px; }
+  .note { color: var(--muted); font-size: 13.5px; }
+  .note code { font-size: 12.5px; padding: 1px 6px; border-radius: 6px; box-shadow: inset 1px 1px 3px var(--lo), inset -1px -1px 3px var(--hi); }
+  .seen { display: flex; gap: 18px; align-items: center; margin-top: 14px; }
+  .seen .well { padding: 8px; border-radius: 18px; flex: none; }
+  .seen canvas { width: 112px; height: 112px; border-radius: 12px; background: #15171c; display: block; }
+  .stats { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+  .stat { padding: 8px 12px; border-radius: 14px; font-size: 12px; color: var(--muted); }
+  .stat b { display: block; color: var(--ink); font-size: 17px; font-variant-numeric: tabular-nums; }
+
+  .keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; }
+  .key { --c: var(--ink); font: inherit; color: var(--ink); border: 0; cursor: pointer; padding: 14px 6px 12px; border-radius: 20px;
+         display: grid; justify-items: center; gap: 2px; position: relative; transition: box-shadow .12s, transform .12s; }
+  .key .em { font-size: 28px; line-height: 1.1; }
+  .key .nm { font-weight: 800; color: var(--c); }
+  .key kbd { position: absolute; top: 8px; right: 10px; font: 700 11px/1 ui-monospace, monospace; color: var(--muted); }
+  .key:active, .key.down { transform: scale(.98);
+         box-shadow: inset 5px 5px 10px var(--lo), inset -5px -5px 10px var(--hi); }
+  .key:disabled { cursor: default; opacity: .45; }
+  .key:focus-visible { outline: 2px solid var(--paper); outline-offset: 3px; }
+  .saved { min-height: 1.5em; margin-top: 12px; font-size: 13.5px; color: var(--muted); }
+  .saved b { color: var(--ink); }
+  .tally { display: flex; gap: 10px; margin-top: 10px; }
+  .tally .stat { flex: 1; text-align: center; }
+
   video { position: fixed; left: 0; top: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; }  /* display:none bazı tarayıcılarda kareleri dondurur */
+
+  @media (max-width: 520px) {
+    .ring { width: 92px; height: 92px; } .disc { inset: 19px; font-size: 28px; }
+    .verdict { gap: 14px; } .panel, .card { padding: 16px; } .grid, .lower { gap: 22px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  @property --p { syntax: "<number>"; inherits: true; initial-value: 0; }
 </style>
 </head>
 <body>
 <main>
-  <h1>Deneme Sayfası</h1>
-  <p class="sub">Elini kameraya göster: taş, kağıt veya makas yap. Her model kendi panelinde tahmin eder.</p>
-  <div class="status" id="status">Yükleniyor…</div>
+  <header>
+    <div class="logo raised" aria-hidden="true"><span></span></div>
+    <div>
+      <h1><b>Taş</b><i>·</i><b>Kağıt</b><i>·</i><b>Makas</b></h1>
+      <p>Elini kameraya göster. İki model aynı anda tahmin eder: biri sıfırdan, biri önceden eğitilmiş.</p>
+    </div>
+    <div class="head-right">
+      <div class="seg inset" id="where" role="group" aria-label="Modeller nerede çalışsın?">
+        <button data-where="server" aria-pressed="true" title="Kırpılmış el sunucuya gider, modeller sunucu CPU'sunda paralel çalışır">Sunucu</button>
+        <button data-where="browser" aria-pressed="false" title="Modeller bir kez iner, sonra tarayıcında çalışır (ONNX Runtime Web); proxy gidiş-dönüşü olmaz">Tarayıcı</button>
+      </div>
+      <div class="chip raised" id="status"><span class="dot"></span><span class="txt">Yükleniyor…</span></div>
+      <div class="chip raised" id="agree" hidden><span class="dot"></span><span class="txt"></span></div>
+    </div>
+  </header>
+
   <div class="grid" id="panels"></div>
-  <div class="crop"><canvas id="crop" width="224" height="224"></canvas>
-    <div>Modellerin gördüğü görüntü: MediaPipe'ın bulduğu el, eğitimdekiyle aynı kuralla kırpılmış (224×224).
-      <div id="perf" style="margin-top:6px;font-variant-numeric:tabular-nums"></div></div></div>
+
+  <div class="lower">
+    <section class="card raised">
+      <h3>Modellerin gördüğü</h3>
+      <div class="note">MediaPipe elini bulur, eğitimdekiyle aynı kuralla 224×224 kırpar; iki model de sadece bunu görür.
+        Her modelin kendi hesap süresi panelinin sağ üstünde yazar.</div>
+      <div class="seen">
+        <div class="well inset"><canvas id="crop" width="224" height="224"></canvas></div>
+        <div class="stats">
+          <div class="stat inset"><b id="p-fps">–</b>kare/sn</div>
+          <div class="stat inset"><b id="p-det">–</b>el tespiti (ms)</div>
+          <div class="stat inset"><b id="p-trip">–</b><span id="p-trip-lbl">sunucu gidiş-dönüş (ms)</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card raised">
+      <h3>Kare kaydet (yeni data)</h3>
+      <div class="note">Model yanılıyorsa doğru hareketin tuşuna bas. Basılı tutup elini yavaşça oynatırsan saniyede ~4 kare kaydeder;
+        kareler <code>dataset_live/</code> klasörüne gider.</div>
+      <div class="keys">
+        <button class="key raised" data-save="rock" style="--c:var(--rock)"><kbd>1</kbd><span class="em">✊</span><span class="nm">Taş</span></button>
+        <button class="key raised" data-save="paper" style="--c:var(--paper)"><kbd>2</kbd><span class="em">✋</span><span class="nm">Kağıt</span></button>
+        <button class="key raised" data-save="scissors" style="--c:var(--scissors)"><kbd>3</kbd><span class="em">✌️</span><span class="nm">Makas</span></button>
+      </div>
+      <div class="saved" id="saved"></div>
+      <div class="tally" id="tally" hidden>
+        <div class="stat inset"><b data-n="rock">0</b>Taş</div>
+        <div class="stat inset"><b data-n="paper">0</b>Kağıt</div>
+        <div class="stat inset"><b data-n="scissors">0</b>Makas</div>
+      </div>
+    </section>
+  </div>
   <video id="video" autoplay playsinline muted></video>
 </main>
 
@@ -47,15 +184,27 @@ import { HandLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@m
 const COLORS = { rock: "--rock", paper: "--paper", scissors: "--scissors" };
 const SHOW = ["rock", "paper", "scissors"];          // çubuk sırası: Taş, Kağıt, Makas
 const TR = { rock: "Taş", paper: "Kağıt", scissors: "Makas" };
+const EMOJI = { rock: "✊", paper: "✋", scissors: "✌️" };
 const video = document.getElementById("video");
-const statusEl = document.getElementById("status");
+const statusEl = document.getElementById("status"), agreeEl = document.getElementById("agree");
 const crop = document.getElementById("crop"), cropCtx = crop.getContext("2d");
-let landmarker, models = [], panels = {}, probs = {}, box = null, busy = false;
+let landmarker, models = [], panels = {}, probs = {}, box = null, inFlight = 0, sent = 0, applied = 0, lastT = {};
+let where = "server", ort = null, sessions = {}, busy = {}, browserReady = null;
 const perf = { detect: 0, trip: 0, fps: 0, frames: 0, t0: performance.now() };
 const avg = (old, v) => old ? 0.8 * old + 0.2 * v : v;
+// Proxy gidiş-dönüşü yavaş olduğu için aynı anda MAX_FLIGHT istek yolda olabilir (sırası geçen cevap atılır).
+// Zaman yumuşatma: yeni tahmin TAU ms'lik üstel ortalamaya katılır → tek karelik sıçramalar kaybolur ama
+// el değişince karar ~TAU içinde döner (kaç cevap geldiğinden bağımsız).
+const MAX_FLIGHT = 3, TAU = 120, UNSURE = 0.6;   // en yüksek olasılık UNSURE'un altındaysa "Emin değilim"
+const CTX_PAD = 2.4, CTX_SIZE = 384;  // kaydedilen bağlam karesi (tools/crop_context.py ile aynı)
+const ORT = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/";
+const TITLES = { model_a: "Model A", model_b: "Model B", model_a_v2: "Model A v2", model_b_v2: "Model B v2" };
 
-function setStatus(text, err = false) {
-  statusEl.hidden = !text; statusEl.textContent = text || ""; statusEl.classList.toggle("err", err);
+function setStatus(text, err = false, ok = false) {
+  statusEl.hidden = !text;
+  statusEl.classList.toggle("ok", ok);
+  statusEl.querySelector(".txt").textContent = text || "";
+  statusEl.classList.toggle("err", err);
 }
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 
@@ -64,15 +213,23 @@ async function loadModels() {
   const root = document.getElementById("panels");
   root.innerHTML = "";
   for (const m of models) {
-    const el = document.createElement("div");
-    el.className = "panel";
-    el.innerHTML = `<h2>${m.name === "model_a" ? "Model A" : "Model B"}: ${m.model}</h2>
-      <div class="meta">Test macro F1: ${m.test_macro_f1.toFixed(3)}</div>
-      <canvas class="view" width="640" height="480"></canvas>
-      <div class="bars">${SHOW.map((c) => `<div class="bar"><span>${TR[c]}</span>
-        <div class="track"><i data-c="${c}" style="background:var(${COLORS[c]})"></i></div><span data-p="${c}">–</span></div>`).join("")}</div>`;
+    const el = document.createElement("section");
+    el.className = "panel raised";
+    el.innerHTML = `<div class="panel-head"><h2>${TITLES[m.name] ?? m.name}<small>${m.model}</small></h2>
+        <div class="badges"><span class="f1 inset" title="Modelin tek tahmin için hesap süresi">⏱ <span class="ms">–</span> ms</span>
+          <span class="f1 inset">Test F1 ${m.test_macro_f1.toFixed(3)}</span></div></div>
+      <div class="well inset"><canvas class="view" width="640" height="480"></canvas></div>
+      <div class="verdict">
+        <div class="ring raised"><div class="disc">·</div></div>
+        <div class="say"><div class="label">Bekliyorum</div><div class="conf">Elini kameraya göster</div>
+          <div class="bars">${SHOW.map((c) => `<div class="bar"><span>${TR[c]}</span>
+            <div class="track inset"><i data-c="${c}" style="background:var(${COLORS[c]})"></i></div><span data-p="${c}">–</span></div>`).join("")}</div>
+        </div>
+      </div>`;
     root.appendChild(el);
-    panels[m.name] = { canvas: el.querySelector("canvas"), el };
+    panels[m.name] = { canvas: el.querySelector("canvas"), el, ring: el.querySelector(".ring"), disc: el.querySelector(".disc"),
+                       label: el.querySelector(".label"), conf: el.querySelector(".conf"), msEl: el.querySelector(".ms"),
+                       ms: 0, last: null };
   }
 }
 
@@ -84,50 +241,156 @@ function squareBox(lms, w, h, pad) {
   return { x: (x0 + x1) / 2 - side / 2, y: (y0 + y1) / 2 - side / 2, side };
 }
 
-async function sendCrop() {
-  if (busy || !box) return;
-  busy = true;
-  const t = performance.now();
+function drawCrop() {
   cropCtx.fillStyle = "#000"; cropCtx.fillRect(0, 0, 224, 224);
   cropCtx.drawImage(video, box.x, box.y, box.side, box.side, 0, 0, 224, 224);  // dışarı taşan kısım siyah kalır
+}
+
+// Yeni tahmini o modelin üstel ortalamasına kat (her modelin kendi saati var: tarayıcıda A, B'yi beklemez)
+function apply(name, n, ms) {
+  const now = performance.now(), last = lastT[name], k = last ? 1 - Math.exp(-(now - last) / TAU) : 1;
+  lastT[name] = now;
+  const o = probs[name];
+  probs[name] = o ? o.map((v, i) => v + k * (n[i] - v)) : n;
+  const P = panels[name];
+  P.ms = avg(P.ms, ms);
+}
+
+// Sunucu: kırpılmış el tek istekle gider, sunucu modelleri paralel çalıştırır
+async function sendCrop() {
+  if (inFlight >= MAX_FLIGHT || !box) return;
+  inFlight++;
+  const t = performance.now(), seq = ++sent;
+  drawCrop();
   const blob = await new Promise((r) => crop.toBlob(r, "image/jpeg", 0.9));
   try {
     const res = await fetch("predict", { method: "POST", body: blob });
     const out = await res.json();
     if (!res.ok) throw new Error(out.error);
-    for (const m of models) if (out[m.name]) probs[m.name] = out[m.name].probs;
     perf.trip = avg(perf.trip, performance.now() - t);
+    if (seq > applied && box && where === "server") {
+      applied = seq;
+      for (const m of models) if (out[m.name]) apply(m.name, out[m.name].probs, out[m.name].ms);
+    }
   } catch (e) { setStatus("Tahmin alınamadı: " + e.message, true); }
-  busy = false;
+  inFlight--;
+}
+
+// Tarayıcı: ONNX Runtime Web; modeller sunucudan bir kez iner (önbelleğe alınır)
+async function loadBrowser() {
+  setStatus("Modeller tarayıcıya indiriliyor…");
+  ort = await import(ORT + "ort.wasm.min.mjs");
+  ort.env.wasm.wasmPaths = ORT;
+  // Çok çekirdek sadece sayfa "cross-origin isolated" ise açılır; proxy arkasında değil → genelde tek çekirdek
+  ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 1) : 1;
+  for (const m of models) {
+    const buf = await (await fetch(m.file)).arrayBuffer();
+    sessions[m.name] = await ort.InferenceSession.create(buf, { executionProviders: ["wasm"], graphOptimizationLevel: "all" });
+  }
+  setStatus("Canlı · tarayıcıda", false, true);
+}
+
+function toTensor(m) {
+  const S = m.input_size, d = cropCtx.getImageData(0, 0, 224, 224).data, x = new Float32Array(3 * S * S);
+  for (let i = 0; i < S * S; i++)
+    for (let c = 0; c < 3; c++) x[c * S * S + i] = (d[i * 4 + c] / 255 - m.mean[c]) / m.std[c];
+  return new ort.Tensor("float32", x, [1, 3, S, S]);
+}
+
+function browserStep() {
+  if (!box || !Object.keys(sessions).length) return;
+  drawCrop();
+  for (const m of models) {
+    const s = sessions[m.name];
+    if (!s || busy[m.name]) continue;   // her model kendi hızında: hızlı olan daha sık tahmin eder
+    busy[m.name] = true;
+    const t = performance.now(), feeds = { [s.inputNames[0]]: toTensor(m) };
+    s.run(feeds).then((out) => {
+      if (box && where === "browser") apply(m.name, Array.from(out[s.outputNames[0]].data), performance.now() - t);
+    }).catch((e) => setStatus("Tarayıcıda tahmin hatası: " + e.message, true))
+      .finally(() => { busy[m.name] = false; });
+  }
+}
+
+async function setWhere(w) {
+  where = w;
+  try { localStorage.setItem("where", w); } catch {}
+  document.querySelectorAll("[data-where]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.where === w));
+  document.getElementById("p-trip-lbl").textContent = w === "server" ? "sunucu gidiş-dönüş (ms)" : "sunucu gidiş-dönüş (yok)";
+  probs = {}; lastT = {}; perf.trip = 0;
+  for (const P of Object.values(panels)) P.ms = 0;
+  if (w === "browser") {
+    try { await (browserReady ??= loadBrowser()); }
+    catch (e) { browserReady = null; setStatus("Tarayıcıda çalıştırılamadı: " + e.message, true); setWhere("server"); }
+  } else if (landmarker) setStatus("Canlı · sunucuda", false, true);
+}
+document.querySelectorAll("[data-where]").forEach((b) => b.addEventListener("click", () => setWhere(b.dataset.where)));
+
+// Video üstüne yuvarlatılmış kutu + etiket (ayna görüntüye göre)
+function overlay(ctx, W, H, p, m) {
+  if (!box) {
+    ctx.fillStyle = "rgba(15,17,22,.5)"; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#fff"; ctx.font = `700 ${Math.round(W / 24)}px system-ui`; ctx.textAlign = "center";
+    ctx.fillText("✋  Elini kameraya göster", W / 2, H / 2 + W / 70);
+    return;
+  }
+  if (!p) return;
+  const best = p.indexOf(Math.max(...p)), cls = m.classes[best], sure = p[best] >= UNSURE;
+  const x = W - box.x - box.side, color = sure ? css(COLORS[cls]) : css("--unsure");
+  const r = box.side * 0.08, lw = Math.max(3, W / 150);
+  ctx.lineWidth = lw; ctx.strokeStyle = color;
+  ctx.beginPath(); ctx.roundRect(x, box.y, box.side, box.side, r); ctx.stroke();
+  const label = sure ? `${EMOJI[cls]} ${TR[cls]}  ${Math.round(p[best] * 100)}%` : "Emin değilim";
+  const fs = Math.round(W / 24);
+  ctx.font = `800 ${fs}px system-ui`; ctx.textAlign = "left";
+  const tw = ctx.measureText(label).width + fs, th = fs * 1.7, ty = Math.max(4, box.y - th - 8);
+  ctx.fillStyle = color; ctx.beginPath(); ctx.roundRect(x, ty, tw, th, th / 2); ctx.fill();
+  ctx.fillStyle = "#fff"; ctx.fillText(label, x + fs / 2, ty + th / 2 + fs * 0.36);
 }
 
 function draw() {
-  const W = video.videoWidth, H = video.videoHeight;
+  const W = video.videoWidth, H = video.videoHeight, picks = [];
   for (const m of models) {
-    const { canvas, el } = panels[m.name];
-    if (canvas.width !== W) { canvas.width = W; canvas.height = H; }
-    const ctx = canvas.getContext("2d");
+    const P = panels[m.name];
+    if (P.canvas.width !== W) { P.canvas.width = W; P.canvas.height = H; }
+    const ctx = P.canvas.getContext("2d");
     ctx.save(); ctx.translate(W, 0); ctx.scale(-1, 1); ctx.drawImage(video, 0, 0, W, H); ctx.restore();  // ayna görüntü
-    const p = probs[m.name];
-    if (!box) {
-      ctx.fillStyle = "rgba(0,0,0,.55)"; ctx.fillRect(0, H / 2 - 30, W, 60);
-      ctx.fillStyle = "#fff"; ctx.font = `600 ${Math.round(W / 22)}px system-ui`; ctx.textAlign = "center";
-      ctx.fillText("Elini kameraya göster", W / 2, H / 2 + 10);
-    } else if (p) {
-      const best = p.indexOf(Math.max(...p)), cls = m.classes[best];
-      const x = W - box.x - box.side, color = css(COLORS[cls]);   // kutu ayna görüntüye göre
-      ctx.lineWidth = Math.max(3, W / 160); ctx.strokeStyle = color; ctx.strokeRect(x, box.y, box.side, box.side);
-      const label = `${TR[cls]} %${Math.round(p[best] * 100)}`;
-      ctx.font = `700 ${Math.round(W / 20)}px system-ui`; ctx.textAlign = "left";
-      const tw = ctx.measureText(label).width + 20, th = W / 20 + 14, ty = Math.max(0, box.y - th);
-      ctx.fillStyle = color; ctx.fillRect(x - ctx.lineWidth / 2, ty, tw, th);
-      ctx.fillStyle = "#fff"; ctx.fillText(label, x + 10 - ctx.lineWidth / 2, ty + th - 10);
+    const p = box ? probs[m.name] : null;
+    overlay(ctx, W, H, p, m);
+
+    // Karar diski + güven halkası
+    let cls = null, sure = false, top = 0;
+    if (p) { const b = p.indexOf(Math.max(...p)); cls = m.classes[b]; top = p[b]; sure = top >= UNSURE; }
+    P.ring.style.setProperty("--p", top.toFixed(3));
+    P.ring.style.setProperty("--c", sure ? `var(${COLORS[cls]})` : "var(--unsure)");
+    P.ring.classList.toggle("sure", sure);
+    const key = sure ? cls : p ? "?" : null;
+    if (key !== P.last) {
+      P.last = key;
+      P.disc.textContent = sure ? EMOJI[cls] : p ? "🤔" : "·";
+      P.label.textContent = sure ? TR[cls] : p ? "Emin değilim" : "Bekliyorum";
+      P.label.style.color = sure ? `var(${COLORS[cls]})` : "";
+      if (sure) { P.ring.classList.remove("pop"); void P.ring.offsetWidth; P.ring.classList.add("pop"); }
     }
+    P.conf.textContent = p ? `Güven %${Math.round(top * 100)}` : box ? "Düşünüyor…" : "Elini kameraya göster";
+    P.msEl.textContent = P.ms ? P.ms.toFixed(P.ms < 10 ? 1 : 0) : "–";
+    if (sure) picks.push([TITLES[m.name] ?? m.name, cls]);
+
     for (const c of SHOW) {
-      const v = p && box ? p[m.classes.indexOf(c)] : 0;
-      el.querySelector(`i[data-c="${c}"]`).style.width = `${v * 100}%`;
-      el.querySelector(`span[data-p="${c}"]`).textContent = p && box ? `%${Math.round(v * 100)}` : "–";
+      const v = p ? p[m.classes.indexOf(c)] : 0;
+      P.el.querySelector(`i[data-c="${c}"]`).style.width = `${v * 100}%`;
+      P.el.querySelector(`span[data-p="${c}"]`).textContent = p ? `%${Math.round(v * 100)}` : "–";
     }
+  }
+  // Modeller aynı fikirde mi?
+  const show = models.length > 1 && picks.length === models.length;
+  agreeEl.hidden = !show;
+  if (show) {
+    const same = picks.every(([, c]) => c === picks[0][1]);
+    agreeEl.className = `chip raised ${same ? "ok" : "split"}`;
+    agreeEl.querySelector(".txt").textContent = same
+      ? `Hepsi aynı fikirde: ${EMOJI[picks[0][1]]} ${TR[picks[0][1]]}`
+      : "Ayrıştılar: " + picks.map(([n, c]) => `${n.replace("Model ", "")} ${EMOJI[c]}`).join(" · ");
   }
 }
 
@@ -138,16 +401,53 @@ function loop() {
     perf.detect = avg(perf.detect, performance.now() - t);
     if (++perf.frames % 15 === 0) {
       perf.fps = 15000 / (performance.now() - perf.t0); perf.t0 = performance.now();
-      document.getElementById("perf").textContent =
-        `Hız: ${perf.fps.toFixed(0)} kare/sn · el tespiti ${perf.detect.toFixed(0)} ms · tahmin (sunucuya gidiş-dönüş) ${perf.trip.toFixed(0)} ms`;
+      document.getElementById("p-fps").textContent = perf.fps.toFixed(0);
+      document.getElementById("p-det").textContent = perf.detect.toFixed(0);
+      document.getElementById("p-trip").textContent = perf.trip ? perf.trip.toFixed(0) : "–";
     }
     box = res.landmarks.length
       ? squareBox(res.landmarks[0], video.videoWidth, video.videoHeight, models[0]?.crop_pad ?? 1.4) : null;
-    if (box) sendCrop(); else probs = {};
+    if (box) where === "server" ? sendCrop() : browserStep();
+    else { probs = {}; lastT = {}; applied = sent; }
+    document.querySelectorAll("[data-save]").forEach((b) => (b.disabled = !box));
     draw();
   }
   requestAnimationFrame(loop);
 }
+
+// Etiketli kare kaydetme: elin etrafından geniş bağlam karesi → play.py → dataset_live/<sınıf>/
+const ctxCanvas = document.createElement("canvas");
+ctxCanvas.width = ctxCanvas.height = CTX_SIZE;
+let lastSave = 0;
+async function saveFrame(label) {
+  const now = performance.now();
+  if (!box || now - lastSave < 250) return;
+  lastSave = now;
+  const side = box.side * CTX_PAD / (models[0]?.crop_pad ?? 1.4), cx = box.x + box.side / 2, cy = box.y + box.side / 2;
+  const c = ctxCanvas.getContext("2d");
+  c.fillStyle = "#000"; c.fillRect(0, 0, CTX_SIZE, CTX_SIZE);
+  c.drawImage(video, cx - side / 2, cy - side / 2, side, side, 0, 0, CTX_SIZE, CTX_SIZE);
+  const blob = await new Promise((r) => ctxCanvas.toBlob(r, "image/jpeg", 0.92));
+  const el = document.getElementById("saved");
+  try {
+    const res = await fetch(`save?label=${label}`, { method: "POST", body: blob });
+    const n = await res.json();
+    if (!res.ok) throw new Error(n.error);
+    el.innerHTML = `Kaydedildi: <b>${EMOJI[label]} ${TR[label]}</b>`;
+    document.getElementById("tally").hidden = false;
+    for (const k of SHOW) document.querySelector(`[data-n="${k}"]`).textContent = n[k];
+  } catch (e) { el.textContent = "Kaydedilemedi: " + e.message; }
+}
+const KEYS = { "1": "rock", "2": "paper", "3": "scissors" };
+const keyBtn = (label) => document.querySelector(`[data-save="${label}"]`);
+document.querySelectorAll("[data-save]").forEach((b) => b.addEventListener("click", () => saveFrame(b.dataset.save)));
+addEventListener("keydown", (e) => {
+  const label = KEYS[e.key];
+  if (!label) return;
+  keyBtn(label).classList.add("down");   // klavyeyle basınca tuş da gömülsün
+  saveFrame(label);
+});
+addEventListener("keyup", (e) => { if (KEYS[e.key]) keyBtn(KEYS[e.key]).classList.remove("down"); });
 
 async function start() {
   try {
@@ -165,8 +465,11 @@ async function start() {
     video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
     await video.play();
   } catch (e) { setStatus("Kameraya erişilemedi. Lütfen izin ver.", true); return; }
-  setStatus("");
+  setStatus("Canlı · sunucuda", false, true);
   loop();
+  let saved = "server";
+  try { saved = localStorage.getItem("where") || "server"; } catch {}
+  if (saved === "browser") setWhere("browser");
 }
 start();
 </script>
