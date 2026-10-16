@@ -23,7 +23,7 @@
     0.225
   ],
   "crop_pad": 1.4,
-  "test_macro_f1": 0.9817,
-  "test_stress_f1": 0.9306,
-  "recipe": "improve.py A_new2_long seed 1"
+  "test_macro_f1": 0.9502,
+  "test_stress_f1": 0.929,
+  "recipe": "improve.py A_live seed 1"
 }

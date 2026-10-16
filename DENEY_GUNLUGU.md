@@ -162,6 +162,27 @@ Kamerada iki model de ilk sürümde zorlandı (özellikle makas, kutu kayınca v
 - int8 ONNX: A 27 MB, B 34 MB; ikisi de fp32 ile aynı test F1.
 - Eski modeller `models/eski/`, eski sonuçlar `results/v2/eski_veri/` içinde.
 
+### V3 — Dizüstü kamera kareleri + distillation denemesi · 16 Ekim 2026
+Deneme sayfasında kaydedilen 89 dizüstü kamera karesinde (eğitimde hiç görülmemiş) V2 modelleri: **A 52/89 (%58), B 87/89 (%98)**. A kağıtların yarısından fazlasını makas sanıyordu. Sebep: eğitim fotoğraflarının neredeyse hepsi iPhone'dan.
+- Kareler önce elle temizlendi: yanlış butonla kaydedilen 10 makas → `scissors`; emin olunamayan 11 kare ve yanlış etiketli 4 kare silindi.
+- `tools/import_live.py` → crop → split (eski dosyalar yerinde, yeni gruplar dağıtıldı) → bağlam kareleri. Dataset 746 el (521 / 113 / 112).
+- **Canlı test**: test bölümüne düşen 12 canlı kare (val'de 13). Asıl hedef bu küme; az olduğu için 1 kare ≈ 0.07 F1.
+- Tarif **new3** = new2 + canlı kareler eğitimde 3 kat sık + renk kayması (farklı kameraların beyaz dengesi). Val'deki canlı kareler model seçiminde ayrı küme olarak sayılır.
+- **A_kd**: Model A yine sıfırdan; kayıp = ½ etiket + ½ öğretmen B_live'ın olasılıkları (T = 2).
+
+| (test: 112 foto, canlı 12) | Temiz F1 | **Canlı F1** | Canlı val F1 | Zor F1 | Süre |
+|---|---|---|---|---|---|
+| A V2 (`A_new2_long`, canlı kare yok) | 0.942 | 0.593 | 0.556 | 0.898 | – |
+| B V2 (`B_deep`, canlı kare yok) | 0.992 | 0.937 | 0.886 | 0.982 | – |
+| **A V3 (`A_live`)** | 0.950 | **0.930** | 0.941 | 0.929 | 42 dk |
+| A V3 distillation (`A_kd`) | 0.950 | 1.000 | 0.941 | 0.926 | 59 dk |
+| **B V3 (`B_live`)** | 1.000 | **1.000** | 1.000 | 0.983 | 10 dk |
+
+- Canlı kareler A'yı kamerada **0.59 → 0.93** çıkardı; B − A farkı canlıda 0.34 → 0.07.
+- A_kd val'de A_live ile neredeyse aynı (temiz 0.948 / 0.940, canlı ikisi 0.941, val loss biraz kötü). Canlı testteki fark tek kare. **Sayfaya A_live kondu**: distillation B'nin pretraining bilgisini A'ya taşıdığı için "pretraining farkı" karşılaştırmasını bozar ve val'de açık bir kazancı yok.
+- Aynalama TTA'sı (görüntü + yatay ayna ortalaması) denendi: hiçbir modelde val'de kazanç yok (B'de canlı val 1.000 → 0.941) → kullanılmadı.
+- int8 ONNX: A fp32 ile aynı (test 0.950); B test temiz 1.000 → 0.984 (2 foto), canlı 1.000 aynı. Eski V2 modelleri `models/eski/v2_s1_20261013/`.
+
 ---
 
 ## Aşama 5 — Dene ve Karar Ver

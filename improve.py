@@ -16,6 +16,13 @@ Tarifler (iki modelde aynı):
     base  training.ipynb'deki augmentation (kırpılmış 224 px el üstünde)
     new   bağlam karesinden (tools/crop_context.py) rastgele pay 1.2–1.7 ve kaymayla kesme + döndürme,
           renk, ve kamera bozulmaları (hareket bulanıklığı, JPEG, gürültü, düşük çözünürlük, karanlık) + RandomErasing
+    new3  new2 + dizüstü kamera kareleri (dosya adında "_live_") eğitimde 3 kat sık + renk kayması (beyaz dengesi)
+
+Canlı test: deneme sayfasında dizüstü kamerayla kaydedilen karelerden test bölümüne düşenler. Asıl hedef bu;
+zor test sadece yaklaşık bir taklit. Model seçiminde val bölümündeki canlı kareler ayrı bir küme olarak sayılır.
+
+Distillation (A_kd): Model A yine sıfırdan başlar; doğru etiketin yanında öğretmen B'nin (B_live) olasılıklarını da
+taklit eder. Öğretmen sadece eğitimde kullanılır, sayfada çalışan model yalnızca A'dır.
 """
 
 import argparse
@@ -88,12 +95,19 @@ def dark(im, f):
 
 # ---------------------------------------------------------------- datasetler
 
-def load_context(split):
+def load_context(split, live_x=1):
+    """live_x: canlı (dizüstü kamera) kareleri listede kaç kez yer alsın (eğitimde daha sık görülsün diye)."""
     items = []
     for i, c in enumerate(CLASSES):
         for p in sorted((CONTEXT / split / c).glob("*.jpg")):
-            items.append((Image.open(p).convert("RGB"), i))
+            items += [(Image.open(p).convert("RGB"), i)] * (live_x if "_live_" in p.name else 1)
     return items
+
+
+def color_cast(im, g=0.15):
+    """Farklı kameraların beyaz dengesi: her kanala ayrı kazanç."""
+    a = np.asarray(im, np.float32) * np.random.uniform(1 - g, 1 + g, 3)
+    return Image.fromarray(a.clip(0, 255).astype(np.uint8))
 
 
 class NewTrain(torch.utils.data.Dataset):
@@ -101,9 +115,10 @@ class NewTrain(torch.utils.data.Dataset):
     jitter = transforms.ColorJitter(brightness=0.35, contrast=0.3, saturation=0.3, hue=0.03)
     erase = transforms.RandomErasing(p=0.25, scale=(0.02, 0.12), value=0)
 
-    def __init__(self, strong=False):
+    def __init__(self, strong=False, live=False):
         self.strong = strong  # new2: daha geniş pay / kayma / parlaklık + %10 siyah-beyaz
-        self.items = load_context("train")
+        self.live = live      # new3: canlı kareler 3 kat + renk kayması
+        self.items = load_context("train", live_x=3 if live else 1)
         self.targets = [y for _, y in self.items]
 
     def __len__(self):
@@ -118,6 +133,8 @@ class NewTrain(torch.utils.data.Dataset):
         if r() < 0.5:
             im = im.transpose(Image.FLIP_LEFT_RIGHT)
         im = self.jitter(im)
+        if self.live and r() < 0.3:
+            im = color_cast(im)
         if self.strong and r() < 0.2:
             im = ImageEnhance.Brightness(im).enhance(random.uniform(1.3, 1.7))
         if self.strong and r() < 0.1:
@@ -177,10 +194,16 @@ def stress_set(split):
     return out
 
 
-def clean_set(split):
-    ds = datasets.ImageFolder(SPLIT / split, transform=normalize)
+def clean_set(split, live_only=False):
+    ds = datasets.ImageFolder(SPLIT / split, transform=normalize,
+                              is_valid_file=(lambda p: "_live_" in p) if live_only else None)
     assert ds.classes == CLASSES
     return torch.stack([x for x, _ in ds]), torch.tensor(ds.targets)
+
+
+def eval_sets(split):
+    """temiz + canlı + 12 zor küme."""
+    return {"temiz": clean_set(split), "canlı": clean_set(split, live_only=True), **stress_set(split)}
 
 
 # ---------------------------------------------------------------- modeller
@@ -227,7 +250,13 @@ CONFIGS = {
                    steps=lambda m: [([m.head], 3, 1e-3, 0.05), ([m.stages[2], m.stages[3], m.head], 15, 5e-5, 0.05)]),
     "B_deep2": dict(model=model_b, data="new2",
                     steps=lambda m: [([m.head], 3, 1e-3, 0.05), ([m.stages[2], m.stages[3], m.head], 15, 5e-5, 0.05)]),
+    # Canlı kareler eklendi (16 Ekim): A_new2_long'da A kamerada %58'de kalmıştı (B %98)
+    "B_live": dict(model=model_b, data="new3",
+                   steps=lambda m: [([m.head], 3, 1e-3, 0.05), ([m.stages[2], m.stages[3], m.head], 15, 5e-5, 0.05)]),
+    "A_live": dict(model=lambda: model_a(), data="new3", steps=lambda m: [(None, 200, 1e-3, 1e-4)]),
+    "A_kd": dict(model=lambda: model_a(), data="new3", teacher=("B_live", 1), steps=lambda m: [(None, 200, 1e-3, 1e-4)]),
 }
+KD_T, KD_W = 2.0, 0.5  # distillation sıcaklığı ve öğretmen kaybının ağırlığı
 
 
 # ---------------------------------------------------------------- eğitim ve ölçüm
@@ -246,7 +275,7 @@ def scores(p, y):
 def report(model, sets):
     """{set adı: {f1, nll}} + zor testin ortalaması."""
     out = {name: scores(probs(model, x), y) for name, (x, y) in sets.items()}
-    hard = [v for k, v in out.items() if k != "temiz"]
+    hard = [v for k, v in out.items() if k not in ("temiz", "canlı")]
     out["zor ortalama"] = dict(f1=float(np.mean([v["f1"] for v in hard])), nll=float(np.mean([v["nll"] for v in hard])))
     return out
 
@@ -260,10 +289,16 @@ def run(name, seed, threads):
     torch.set_num_threads(threads)
     random.seed(seed); np.random.seed(seed); torch.manual_seed(seed)
     cfg = CONFIGS[name]
-    train_ds = NewTrain(cfg["data"] == "new2") if cfg["data"] != "base" else base_train()
+    train_ds = NewTrain(cfg["data"] in ("new2", "new3"), cfg["data"] == "new3") if cfg["data"] != "base" else base_train()
     dl = torch.utils.data.DataLoader(train_ds, batch_size=32, shuffle=True, num_workers=0,
                                      generator=torch.Generator().manual_seed(seed))
-    val_sets = {"temiz": clean_set("val"), **stress_set("val")}
+    val_sets = eval_sets("val")
+    teacher = None
+    if "teacher" in cfg:
+        t_name, t_seed = cfg["teacher"]
+        teacher = CONFIGS[t_name]["model"]()
+        teacher.load_state_dict(torch.load(CKPT / f"{t_name}_s{t_seed}.pt"))
+        teacher.eval()
     model = cfg["model"]()
     best, best_state, hist, t0 = math.inf, None, [], time.time()
     for parts, epochs, lr, wd in cfg["steps"](model):
@@ -278,7 +313,13 @@ def run(name, seed, threads):
             model.train()
             total = 0.0
             for x, y in dl:
-                loss = F.cross_entropy(model(x), y, label_smoothing=0.1)
+                out = model(x)
+                loss = F.cross_entropy(out, y, label_smoothing=0.1)
+                if teacher is not None:
+                    with torch.no_grad():
+                        soft = (teacher(x) / KD_T).softmax(1)
+                    kd = F.kl_div((out / KD_T).log_softmax(1), soft, reduction="batchmean") * KD_T ** 2
+                    loss = (1 - KD_W) * loss + KD_W * kd
                 opt.zero_grad(); loss.backward(); opt.step(); sched.step()
                 total += loss.item() * len(y)
             vl = val_loss(model, val_sets)
@@ -291,10 +332,10 @@ def run(name, seed, threads):
     CKPT.mkdir(parents=True, exist_ok=True); OUT.mkdir(parents=True, exist_ok=True)
     torch.save(model.state_dict(), CKPT / f"{name}_s{seed}.pt")
     res = dict(config=name, seed=seed, minutes=(time.time() - t0) / 60, best_val_loss=best,
-               val=report(model, val_sets), test=report(model, {"temiz": clean_set("test"), **stress_set("test")}),
+               val=report(model, val_sets), test=report(model, eval_sets("test")),
                history=hist)
     (OUT / f"{name}_s{seed}.json").write_text(json.dumps(res, indent=1, ensure_ascii=False))
-    print(f"BITTI {name} s{seed}: test temiz F1 {res['test']['temiz']['f1']:.3f} | test zor F1 {res['test']['zor ortalama']['f1']:.3f}"
+    print(f"BITTI {name} s{seed}: test temiz F1 {res['test']['temiz']['f1']:.3f} | canlı test F1 {res['test']['canlı']['f1']:.3f} | test zor F1 {res['test']['zor ortalama']['f1']:.3f}"
           f" | val zor F1 {res['val']['zor ortalama']['f1']:.3f} | {res['minutes']:.1f} dk", flush=True)
 
 
@@ -303,8 +344,7 @@ def baseline():
     import timm  # noqa: F401
     torch.set_num_threads(48)
     OUT.mkdir(parents=True, exist_ok=True)
-    val_sets = {"temiz": clean_set("val"), **stress_set("val")}
-    test_sets = {"temiz": clean_set("test"), **stress_set("test")}
+    val_sets, test_sets = eval_sets("val"), eval_sets("test")
     for name, make in (("model_a", model_a), ("model_b", model_b)):
         m = make()
         m.load_state_dict(torch.load(MODELS / f"{name}_best.pt"))
@@ -320,11 +360,12 @@ def summary():
     for r in rows:
         groups.setdefault(r["config"], []).append(r)
     ms = lambda v: f"{np.mean(v):.3f} ± {np.std(v):.3f}" if len(v) > 1 else f"{v[0]:.3f}"
-    print(f"{'deney':<26}{'n':>3}  {'val zor F1':>15}  {'val zor loss':>15}  {'test temiz F1':>15}  {'test zor F1':>15}  {'test zor loss':>15}")
+    print(f"{'deney':<26}{'n':>3}  {'val zor F1':>15}  {'val zor loss':>15}  {'test temiz F1':>15}  {'canlı test F1':>15}  {'test zor F1':>15}  {'test zor loss':>15}")
     for name, g in groups.items():
         get = lambda s, k, m: [r[s][k][m] for r in g]
+        live = lambda g: ms([r["test"]["canlı"]["f1"] for r in g]) if all("canlı" in r["test"] for r in g) else "-"
         print(f"{name:<26}{len(g):>3}  {ms(get('val', 'zor ortalama', 'f1')):>15}  {ms(get('val', 'zor ortalama', 'nll')):>15}"
-              f"  {ms(get('test', 'temiz', 'f1')):>15}  {ms(get('test', 'zor ortalama', 'f1')):>15}  {ms(get('test', 'zor ortalama', 'nll')):>15}")
+              f"  {ms(get('test', 'temiz', 'f1')):>15}  {live(g):>15}  {ms(get('test', 'zor ortalama', 'f1')):>15}  {ms(get('test', 'zor ortalama', 'nll')):>15}")
     print("\nBozulma başına test F1 (seed ortalaması):")
     names = list(STRESS)
     print(f"{'':<26}" + "".join(f"{n[:11]:>12}" for n in names))
