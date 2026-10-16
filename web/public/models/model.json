@@ -24,6 +24,6 @@
   ],
   "crop_pad": 1.4,
   "test_macro_f1": 1.0,
-  "test_stress_f1": 0.9834,
+  "test_stress_f1": 0.9885,
   "recipe": "improve.py B_live seed 1"
 }

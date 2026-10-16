@@ -1,0 +1,32 @@
+{
+  "model": "Kendi CNN'im (sıfırdan)",
+  "test_macro_f1": 0.9365962180200222,
+  "test_loss": 0.1749392577580043,
+  "test_f1_per_class": {
+    "paper": 0.9247311827956989,
+    "rock": 0.9655172413793104,
+    "scissors": 0.9195402298850575
+  },
+  "confusion_matrix": [
+    [
+      43,
+      0,
+      5
+    ],
+    [
+      1,
+      28,
+      1
+    ],
+    [
+      1,
+      0,
+      40
+    ]
+  ],
+  "classes": [
+    "paper",
+    "rock",
+    "scissors"
+  ]
+}

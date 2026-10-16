@@ -46,6 +46,17 @@ Bu dosya projenin her aşamasındaki kararları, sayıları ve gözlemleri içer
 - Yeni ham sayılar: taş 178, kağıt 249, makas 231 (toplam 658).
 - ⚠️ Cihaz dengesi: makasın 230 fotoğrafından sadece **5'i laptop kamerasından** (taş 19, kağıt 9). Plan "yarısı laptop" diyordu ve demo laptop kamerasıyla. Kamerada makas sorununun en olası sebebi bu → deneme sayfasından laptop kamerasıyla kare kaydedilecek (`dataset_live/`, `tools/import_live.py`).
 
+### Dizüstü kamera kareleri ve son fotoğraflar · 16 Ekim 2026
+- Deneme sayfasında kaydedilen 89 dizüstü kamera karesi (taş 8, kağıt 52, makas 29) temizlenip datasete eklendi.
+- Sonra 46 WhatsApp fotoğrafı daha eklendi (taş 12, kağıt 17, makas 17).
+
+| Sınıf | Son ham sayı |
+|---|---|
+| rock (taş) | 198 |
+| paper (kağıt) | 318 |
+| scissors (makas) | 277 |
+| **Toplam** | **793** |
+
 ---
 
 ## Aşama 2 — Data Cleaning
@@ -83,6 +94,16 @@ Bu dosya projenin her aşamasındaki kararları, sayıları ve gözlemleri içer
 | paper | 173 | 38 | 38 | 249 |
 | scissors | 160 | 35 | 35 | 230 |
 | **toplam** | **457** | **100** | **100** | **657** |
+
+**Son bölünme (16 Ekim, dizüstü kamera kareleri + yeni fotoğraflar):** 793 fotoğrafın 790'ında el bulundu. Eski dosyalar yine bölümlerinde kaldı.
+
+| Sınıf | train | val | test | toplam |
+|---|---|---|---|---|
+| rock | 137 | 30 | 30 | 197 |
+| paper | 222 | 48 | 48 | 318 |
+| scissors | 192 | 42 | 41 | 275 |
+| **toplam** | **551** | **120** | **119** | **790** |
+| *bunların dizüstü kamera karesi* | *64* | *13* | *12* | *89* |
 
 ---
 
@@ -183,6 +204,19 @@ Deneme sayfasında kaydedilen 89 dizüstü kamera karesinde (eğitimde hiç gör
 - Aynalama TTA'sı (görüntü + yatay ayna ortalaması) denendi: hiçbir modelde val'de kazanç yok (B'de canlı val 1.000 → 0.941) → kullanılmadı.
 - int8 ONNX: A fp32 ile aynı (test 0.950); B test temiz 1.000 → 0.984 (2 foto), canlı 1.000 aynı. Eski V2 modelleri `models/eski/v2_s1_20261013/`.
 
+### Son modeller — 790 el · 16 Ekim 2026 (`training.ipynb` V3 bölümü)
+Yeni fotoğraflar eklenince iki model aynı tarifle (`B_live`, `A_live`) yeniden eğitildi. Test seti değiştiği için (119 foto) yukarıdaki tabloyla birebir karşılaştırılamaz.
+
+| Test (119 foto, canlı 12) | Kağıt | Taş | Makas | **Macro F1** | Canlı F1 | Zor F1 | Süre |
+|---|---|---|---|---|---|---|---|
+| Model A — kendi CNN (`A_live`) | 0.925 | 0.966 | 0.920 | **0.937** | 1.000 | 0.911 | 42 dk |
+| Model B — ConvNeXt-Tiny (`B_live`) | 1.000 | 1.000 | 1.000 | **1.000** | 1.000 | 0.989 | 10 dk |
+
+- **Pretraining farkı (B − A): temiz +0.063, zor +0.078**; canlı testte ikisi eşit (12 kare az olduğu için bu kümede fark görünmüyor).
+- A'nın en zayıf olduğu yer kutu kayması (0.84–0.86) ve eğik el (0.875); B'nin en kötüsü hareket bulanıklığı (0.959).
+- Aşama 3'teki tahminim "B az farkla kazanır (~0.05)" idi → **B kazandı**; son modellerde fark tahmine çok yakın (+0.063), zor testte daha da büyük.
+- int8 ONNX: B 34 MB, test F1 1.000 (fp32 ile aynı).
+
 ---
 
 ## Aşama 5 — Dene ve Karar Ver
@@ -194,12 +228,10 @@ Deneme sayfasında kaydedilen 89 dizüstü kamera karesinde (eğitimde hiç gör
 - **Sunucu / Tarayıcı** seçimi: "Tarayıcı"da modeller ONNX Runtime Web ile tarayıcıda çalışır (proxy gidiş-dönüşü yok). Sunucuda tek çekirdekli WASM ölçümü: A 66 ms, B ~440 ms. B büyük model olduğu için tarayıcıda yavaş; laptopta çok çekirdekle daha hızlı olmalı (Aşama 6'da COOP/COEP ile açık).
 - Kamerada yanlış tahmin olunca 1 / 2 / 3 tuşlarıyla kare kaydedilir → `dataset_live/` → `tools/import_live.py` ile datasete eklenir.
 
-### Karar — ⏳ öğrencinin kararı bekleniyor
-- [ ] Web'e giden model: **…** (A mı B mi?)
-- [ ] Neden: metrikler ve canlı deneme aynı şeyi söyledi mi?
-- [ ] Diğer model kamerada nerede zorlandı?
-
-Rakamlar B'yi gösteriyor (temiz +0.018, zor test +0.057); A tarayıcıda ~7 kat hızlı. Son karar kamerada yan yana denedikten sonra.
+### Karar (16 Ekim 2026) — web'e **Model B (ConvNeXt-Tiny)** gidiyor
+- **Neden:** son modelleri deneme sayfasında yan yana denedim; **B kamerada daha tutarlıydı.**
+- **Metrikler ve canlı deneme aynı şeyi söyledi mi?** Evet. B temiz testte (1.000 / 0.937) ve zor testte (0.989 / 0.911) önde; canlı testte ikisi eşit (1.000), kamerada ise B daha tutarlıydı.
+- **Model A nerede zorlandı?** Kutu kayınca ve el eğikken (zor testte 0.84–0.88); ilk sürümlerde laptop kamerasında kağıdı makas sanıyordu. A'nın artısı hız (tarayıcıda ~7 kat hızlı).
 
 ---
 
@@ -209,5 +241,10 @@ Rakamlar B'yi gösteriyor (temiz +0.018, zor test +0.057); A tarayıcıda ~7 kat
 - Next.js 15 + ONNX Runtime Web 1.20 (WASM) + MediaPipe Tasks Vision; her şey tarayıcıda, sunucu / API anahtarı yok.
 - Tek model, büyük kamera görüntüsü, bounding box + % confidence, tahmin kartı, model bilgi kartı (ad, test macro F1, tahmin süresi), yükleniyor / hata / "elini göster" durumları, ön kamera, mobil uyumlu yerleşim.
 - ORT ve MediaPipe dosyaları `public/` altından gelir (CDN yok); COOP/COEP başlıklarıyla WASM çok çekirdekli çalışır.
-- Şu an metrik lideri **Model B** konuldu; karar A olursa `public/models/` içindeki model değiştirilecek.
-- Yapılacaklar: karara göre kaybeden modeli projeden kaldırmak, ürün adı, telefonda deneme, Vercel deploy (Root Directory = `web`).
+
+### Son ürün (16 Ekim) — double down: Model B
+- **Ürün adı:** Taş Kağıt Makas AI — *Elini göster, ne yaptığını tahmin edeyim.*
+- Web uygulamasında sadece kazanan model var: `web/public/models/model_b.onnx` (son B, test macro F1 1.000), model kartında adı ve macro F1'i yazıyor.
+- **Kaybeden Model A kaldırıldı:** `models/model_a.onnx` / `model_a.json` repodan silindi; web uygulamasında A'ya ait kod hiç yoktu. Eğitim kodu (`improve.py`, `training.ipynb`) karşılaştırma için kaldı.
+- Favicon eklendi (`web/app/icon.svg`, `apple-icon.png`): makas yapan el.
+- Yapılacaklar (öğrenci): telefonda ön kamerayla deneme, Vercel deploy (Root Directory = `web`), canlı linki telefondan açmak.

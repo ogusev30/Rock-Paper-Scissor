@@ -1,20 +1,20 @@
 Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-B_live s1 epoch   1 | train loss 0.791 | val (temiz+zor) loss 0.482
-B_live s1 epoch   2 | train loss 0.546 | val (temiz+zor) loss 0.412
-B_live s1 epoch   3 | train loss 0.517 | val (temiz+zor) loss 0.405
-B_live s1 epoch   4 | train loss 0.457 | val (temiz+zor) loss 0.220
-B_live s1 epoch   5 | train loss 0.358 | val (temiz+zor) loss 0.184
-B_live s1 epoch   6 | train loss 0.334 | val (temiz+zor) loss 0.229
-B_live s1 epoch   7 | train loss 0.333 | val (temiz+zor) loss 0.189
-B_live s1 epoch   8 | train loss 0.322 | val (temiz+zor) loss 0.176
-B_live s1 epoch   9 | train loss 0.310 | val (temiz+zor) loss 0.168
-B_live s1 epoch  10 | train loss 0.306 | val (temiz+zor) loss 0.163
-B_live s1 epoch  11 | train loss 0.303 | val (temiz+zor) loss 0.171
-B_live s1 epoch  12 | train loss 0.304 | val (temiz+zor) loss 0.172
-B_live s1 epoch  13 | train loss 0.306 | val (temiz+zor) loss 0.176
-B_live s1 epoch  14 | train loss 0.302 | val (temiz+zor) loss 0.167
-B_live s1 epoch  15 | train loss 0.301 | val (temiz+zor) loss 0.162
-B_live s1 epoch  16 | train loss 0.300 | val (temiz+zor) loss 0.162
-B_live s1 epoch  17 | train loss 0.302 | val (temiz+zor) loss 0.162
-B_live s1 epoch  18 | train loss 0.300 | val (temiz+zor) loss 0.162
-BITTI B_live s1: test temiz F1 1.000 | canlı test F1 1.000 | test zor F1 0.983 | val zor F1 0.961 | 10.0 dk
+B_live s1 epoch   1 | train loss 0.780 | val (temiz+zor) loss 0.530
+B_live s1 epoch   2 | train loss 0.555 | val (temiz+zor) loss 0.461
+B_live s1 epoch   3 | train loss 0.532 | val (temiz+zor) loss 0.454
+B_live s1 epoch   4 | train loss 0.516 | val (temiz+zor) loss 0.254
+B_live s1 epoch   5 | train loss 0.380 | val (temiz+zor) loss 0.230
+B_live s1 epoch   6 | train loss 0.358 | val (temiz+zor) loss 0.218
+B_live s1 epoch   7 | train loss 0.335 | val (temiz+zor) loss 0.193
+B_live s1 epoch   8 | train loss 0.320 | val (temiz+zor) loss 0.203
+B_live s1 epoch   9 | train loss 0.313 | val (temiz+zor) loss 0.194
+B_live s1 epoch  10 | train loss 0.311 | val (temiz+zor) loss 0.179
+B_live s1 epoch  11 | train loss 0.308 | val (temiz+zor) loss 0.167
+B_live s1 epoch  12 | train loss 0.305 | val (temiz+zor) loss 0.173
+B_live s1 epoch  13 | train loss 0.305 | val (temiz+zor) loss 0.174
+B_live s1 epoch  14 | train loss 0.304 | val (temiz+zor) loss 0.176
+B_live s1 epoch  15 | train loss 0.305 | val (temiz+zor) loss 0.170
+B_live s1 epoch  16 | train loss 0.300 | val (temiz+zor) loss 0.170
+B_live s1 epoch  17 | train loss 0.304 | val (temiz+zor) loss 0.170
+B_live s1 epoch  18 | train loss 0.303 | val (temiz+zor) loss 0.170
+BITTI B_live s1: test temiz F1 1.000 | canlı test F1 1.000 | test zor F1 0.989 | val zor F1 0.962 | 9.8 dk
