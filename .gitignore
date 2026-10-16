@@ -28,3 +28,6 @@ models/*_fp32.onnx
 
 # Eski modellerin yerel yedeği (fp32 dosyaları 100 MB üstü)
 models/eski/
+
+# Google Drive yedeği için ham fotoğraf zip'i
+dataset_yedek.zip
