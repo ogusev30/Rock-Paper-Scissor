@@ -247,4 +247,5 @@ Yeni fotoğraflar eklenince iki model aynı tarifle (`B_live`, `A_live`) yeniden
 - Web uygulamasında sadece kazanan model var: `web/public/models/model_b.onnx` (son B, test macro F1 1.000), model kartında adı ve macro F1'i yazıyor.
 - **Kaybeden Model A kaldırıldı:** `models/model_a.onnx` / `model_a.json` repodan silindi; web uygulamasında A'ya ait kod hiç yoktu. Eğitim kodu (`improve.py`, `training.ipynb`) karşılaştırma için kaldı.
 - Favicon eklendi (`web/app/icon.svg`, `apple-icon.png`): makas yapan el.
-- Yapılacaklar (öğrenci): telefonda ön kamerayla deneme, Vercel deploy (Root Directory = `web`), canlı linki telefondan açmak.
+- Vercel ilk deploy'u engelledi: Next.js 15.0.3'te bilinen güvenlik açıkları vardı → 15.5.28'e yükseltildi.
+- **Vercel'de yayında (16 Ekim):** https://rock-paper-scissor-jxz8.vercel.app/ (Root Directory = `web`, environment variable yok).

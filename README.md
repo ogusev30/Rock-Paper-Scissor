@@ -3,6 +3,8 @@
 Elini göster, ne yaptığını tahmin edeyim. Laptop ya da telefon kamerasında taş, kağıt ve makas hareketlerini anlık tanıyan bir web uygulaması.
 Exposure AI Academy — Proje 1 (Rock Paper Scissors Vision).
 
+**Canlı:** https://rock-paper-scissor-jxz8.vercel.app/
+
 - **Eli bulmak:** MediaPipe Hand Landmarker
 - **Hareketi tanımak:** kendi fotoğraflarımla fine-tune edilmiş ConvNeXt-Tiny (int8 ONNX, test macro F1 1.000)
 - Her şey tarayıcıda çalışır (ONNX Runtime Web), sunucu veya API anahtarı yok.
